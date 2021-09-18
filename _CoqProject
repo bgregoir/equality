@@ -1,0 +1,16 @@
+-arg -w
+-arg -parsing
+-arg -w
+-arg -extraction-reserved-identifier
+-arg -w
+-arg -extraction-opaque-accessed
+-arg -w
+-arg -ambiguous-paths
+-arg -w
+-arg -duplicate-clear
+-arg -w
+-arg -omega-is-deprecated
+
+-R src Equality
+src/core_defs.v 
+src/option_defs.v
