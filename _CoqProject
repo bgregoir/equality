@@ -16,4 +16,5 @@ src/core_defs.v
 src/option_defs.v
 src/list_defs.v
 src/nested_defs.v
+src/nested_list_defs.v
 src/large_defs.v
