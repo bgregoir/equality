@@ -1,0 +1,56 @@
+- Use the induction principle defined by Enrico, this allows to share proof of nesteed type.
+  The conter part is that maybe the algorithm for eq_dec is less efficiant (translation to is_T)
+- Be able to use int63 instead of positive. 
+  This require to have a function eqd of type, forall (x y:int), { x = y } + { x <> y}.
+  (At least forall x y, option (x = y)) 
+  such that eqd c c ---> erefl c.
+
+- Deal with UIP. 
+  Do no check field that have a uniq elements like unit and UIP.
+  Should we do the same for sprop ?
+
+- Do not call eq_fields if field_t is unit (or contain only UIP element)
+
+- Deal with dependant type such that 
+   |Vword : forall ws, word ws -> value.
+  We have two posibilities: 
+    1/ require to have a decidable equality over ws and a decidable equality over word ws.
+    2/ require to have a function of spec 
+        forall ws1 (w1: word ws1) ws2 (word ws2),
+            {h : ws1 = ws2 | w1 = cast h w2 } + 
+            {  This part is less clear for me  }.
+    
+   For my point of view the first has the advantage to be systematique, we can use dependant product for 
+   field_t and have a generic function to decide equality over dependant product.
+   The second can be more efficiant since testing ws1 = ws2 is not necessary.
+   Furthermore solution 2 is more treaky for constructor with many arguments.
+  
+   |Vword : forall ws, word ws -> nat -> value.
+   What should be field_t ?
+      { ws & word ws * nat} or 
+      { ws & word ws} * nat
+
+   |Vword : forall ws, word ws -> nat -> word ws -> value.
+
+   { ws & word ws * nat * word ws}
+   { ws & word ws * word ws} * nat 
+   In all that cases what should we require from the user 
+       a function that decide equality over "word ws" "word ws * word ws" ?
+
+   For my point of view it is less systematic.
+ 
+
+
+
+   
+
+      
+
+        
+
+    
+
+
+  
+  
+  
