@@ -1,7 +1,7 @@
 Require Import Eqdep_dec.
 
 From mathcomp Require Import all_ssreflect.
-Require Import core_defs.
+Require Import core_defs  tag.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -27,15 +27,17 @@ Module AUX.
 Section Section.
 Context {A : Type}.
 
-Definition tag (x : option A) := 
+Elpi tag option.
+Definition tag {A} := @option_tag A. (*(x : option A) := 
   match x with
   | None     => 1
   | Some _   => 2
   end.
+*)
 
 Definition fields_t (t:positive) : Type := 
   match t with
-  | 2 => A  
+  | 1 => A  
   | _ => unit
   end.
 
@@ -47,8 +49,8 @@ Definition fields (x:option A) : fields_t (tag x) :=
 
 Definition construct (t:positive) : fields_t t -> option (option A) := 
   match t with
-  | 1 => fun _ => Some None 
-  | 2 => fun a => Some (Some a)
+  | 1 => fun a => Some (Some a)
+  | 2 => fun _ => Some None 
   | _ => fun _ => None
   end.
 
@@ -70,15 +72,15 @@ Context (A:Type) (Aeqb : A -> A -> bool).
 
 Definition eqb_fields (t:positive) : fields_t t -> fields_t t -> bool := 
   match t return fields_t t -> fields_t t -> bool with
-  | 1 => eq_op
-  | 2 => Aeqb
+  | 1 => Aeqb
+  | 2 => eq_op
   | _ => eq_op
   end.
 
 Definition eqb (x1 x2:option A) := 
   match x1 with
-  | None => eqb_body eqb_fields (t1:=1) tt x2
-  | Some a => eqb_body eqb_fields (t1:=2) a x2
+  | Some a => eqb_body eqb_fields (t1:=1) a x2
+  | None => eqb_body eqb_fields (t1:=2) tt x2
   end.
 
 Lemma eqb_correct_on_None : eqb_correct_on eqb None.

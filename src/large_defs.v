@@ -1,7 +1,7 @@
 Require Import Eqdep_dec.
 
 From mathcomp Require Import all_ssreflect.
-Require Import core_defs.
+Require Import core_defs  tag.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -212,7 +212,8 @@ Inductive t :=
 
 Module AUX.
 
-Definition tag (x : t) := 
+Elpi tag t.
+Definition tag := t_tag. (* (x : t) :=
   match x with
   | T1   => 1  
   | T2   => 2  
@@ -414,6 +415,7 @@ Definition tag (x : t) :=
   | T198 => 198
   | T199 => 199
   end.
+*)
 
 Definition fields_t (p:positive) : Type := unit.
 

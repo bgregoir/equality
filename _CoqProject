@@ -18,3 +18,4 @@ src/list_defs.v
 src/nested_defs.v
 src/nested_list_defs.v
 src/large_defs.v
+src/tag.v
