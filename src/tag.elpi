@@ -40,7 +40,7 @@ do-match _ Vars Tys (match X Rty BL1) :- do! [
 
 % builds the return clause of the match
 pred do-rty i:term, i:list term,i:list term, o:term.
-do-rty _ _ _ {{ positive }}.
+do-rty _ _ _ _. % we leave a hole
 
 % build each branch
 pred do-dummy-branch i:term, i:term, i:list term, i:list term, o:term.
