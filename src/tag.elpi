@@ -35,7 +35,7 @@ do-match _ Vars Tys (match X Rty BL1) :- do! [
   last Vars X, % the last variable is the one for the inductive type
   last Tys XTy,
   build-match X XTy do-rty do-dummy-branch (match X Rty BL),
-  fold-map BL {{ 1 }} do-branch BL1 _, % XXX why 1 based?
+  fold-map BL {{ 1 }} do-branch BL1 _,
 ].
 
 % builds the return clause of the match
