@@ -8,12 +8,22 @@ main I Prefix CL :- std.do! [
   coq.env.indt-decl I Decl, % Decl is easier to manipulate than KL & co above
   do-params Decl (global (indt I)) Body_t,
   
-  std.assert-ok! (coq.typecheck Body_t Ty) "fields generates illtyped fields_t",
+  std.assert-ok! (coq.typecheck Body_t Ty_t) "fields generates illtyped fields_t",
 
-  Name is Prefix ^ "fields_t",
-  coq.env.add-const Name Body_t Ty ff C_t, 
+  Name_t is Prefix ^ "fields_t",
+  coq.env.add-const Name_t Body_t Ty_t ff C_t, 
+
+  coq.env.indt I _ _ _ Arity _ _,
+  std.assert! (tag-for I Tag) "no tag for this inductive",
+  coq.bind-ind-arity (global (indt I)) Arity (do-repack C_t Tag) Body,
+
+  std.assert-ok! (coq.typecheck Body Ty) "fields generates illtyped fields",
+
+  Name is Prefix ^ "fields",
+  coq.env.add-const Name Body Ty ff C, 
 
   CL = [fields-for I C_t C],
+  std.forall CL (x\ coq.elpi.accumulate _ "fields.db" (clause _ _ x)),
 
 ].
 
@@ -50,13 +60,33 @@ do-branch [_|KS] {{ xI }} _ [P] _ R :-
   list-bitmask KS _ KEVEN,
   build-positive-match P KEVEN R.
 do-branch [constructor _ Arity|_] {{ xH }} _ _ _ R :-
-  to-tuple {coq.arity->term Arity} R.
+  prod->tuple {coq.arity->term Arity} R.
 
-pred to-tuple i:term, o:term.
-to-tuple (prod N Ty F) {{ (lp:Ty1 * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
+pred prod->tuple i:term, o:term.
+prod->tuple (prod N Ty F) {{ (lp:Ty1 * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
   copy Ty Ty1,
-  @pi-decl N Ty x\ to-tuple (F x) X.
-to-tuple (prod _ Ty _) Ty1 :- copy Ty Ty1.
-to-tuple _ {{ unit }}. % other branches
+  @pi-decl N Ty x\ prod->tuple (F x) X.
+prod->tuple (prod _ Ty _) Ty1 :- copy Ty Ty1.
+prod->tuple _ {{ unit }}. % other branches
+
+pred do-repack i:constant, i:constant, i:term, i:list term, i:list term, o:term.
+do-repack C_t Tag _ Vars Tys R :-
+  std.appendR Params [X] Vars,
+  std.last Tys XTy,
+  coq.mk-app (global (const C_t)) Params C_tp,
+  coq.mk-app (global (const Tag)) Params Tagp,
+  coq.build-match X XTy (do-rty_t C_tp Tagp) args->tuple R.
+
+pred do-rty_t i:term, i:term, i:term, i:list term,i:list term, o:term.
+do-rty_t C_t Tag _ Vars _ R :-
+  std.last Vars X,
+  coq.mk-app Tag [X] TagX,
+  coq.mk-app C_t [TagX] R.
+
+pred args->tuple i:term, i:term, i:list term, i:list term, o:term.
+args->tuple _ _ [] _ {{ tt }}.
+args->tuple _ _ [X] _ X.
+args->tuple A B [X|XS] C {{ ( lp:X , lp:R ) }} :-
+  args->tuple A B XS C R.
 
 }

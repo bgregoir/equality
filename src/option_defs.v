@@ -42,11 +42,11 @@ Definition fields_t := @option_fields_t A. (*(t:positive) : Type :=
   | _ => unit
   end.*)
 
-Definition fields (x:option A) : fields_t (tag x) := 
+Definition fields := @option_fields A. (* (x:option A) : fields_t (tag x) := 
   match x return fields_t (tag x) with
   | None => tt
   | Some a => a
-  end.
+  end.*)
 
 Definition construct (t:positive) : fields_t t -> option (option A) := 
   match t with

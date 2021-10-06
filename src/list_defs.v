@@ -44,11 +44,11 @@ Definition fields_t := @list_fields_t A. (*(t : positive) : Type :=
   end.
 *)
 
-Definition fields (x : list A) : fields_t (tag x) := 
+Definition fields := @list_fields A. (*(x : list A) : fields_t (tag x) := 
   match x return fields_t (tag x) with
   | [::] => tt
   | a::l => (a, l)
-  end.
+  end.*)
 
 Definition construct (t:positive) : fields_t t -> option (list A) := 
   match t with
