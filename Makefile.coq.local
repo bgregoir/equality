@@ -1,1 +1,2 @@
 src/tag.vo : src/tag.elpi
+src/fields.vo : src/fields.elpi

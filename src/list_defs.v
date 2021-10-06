@@ -1,7 +1,7 @@
 Require Import Eqdep_dec.
 
 From mathcomp Require Import all_ssreflect.
-Require Import core_defs tag.
+Require Import core_defs tag fields.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -36,11 +36,13 @@ Definition tag (x : list A) :=
   end.
 *)
 
-Definition fields_t (t : positive) : Type := 
+Elpi fields list.
+Definition fields_t := @list_fields_t A. (*(t : positive) : Type := 
   match t with
   | 2 => (A * list A)%type
   | _ => unit
   end.
+*)
 
 Definition fields (x : list A) : fields_t (tag x) := 
   match x return fields_t (tag x) with

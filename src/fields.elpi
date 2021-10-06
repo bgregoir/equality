@@ -1,0 +1,62 @@
+namespace fields {
+
+
+
+pred main i:inductive, i:string, o:list prop.
+main I Prefix CL :- std.do! [
+  
+  coq.env.indt-decl I Decl, % Decl is easier to manipulate than KL & co above
+  do-params Decl (global (indt I)) Body_t,
+  
+  std.assert-ok! (coq.typecheck Body_t Ty) "fields generates illtyped fields_t",
+
+  Name is Prefix ^ "fields_t",
+  coq.env.add-const Name Body_t Ty ff C_t, 
+
+  CL = [fields-for I C_t C],
+
+].
+
+pred do-params i:indt-decl, i:term, o:term.
+do-params (parameter ID _ Ty Decl) I (fun N Ty F) :-
+  coq.id->name ID N,
+  @pi-decl N Ty x\ do-params (Decl x) {coq.mk-app I [x]} (F x).
+do-params (inductive ID tt Arity Decl) Self (fun `x` {{ positive }} F) :-
+  @pi-inductive ID Arity i\
+    copy i Self =>
+    @pi-decl `x` {{ positive }} x\
+      build-positive-match x (Decl i) (F x).
+do-params (inductive _ ff _ _) _ _ :- std.assert! fail "records and coinductives not supported".
+do-params (record _ _ _ _) _ _ :- std.assert! fail "records and coinductives not supported".
+
+pred build-positive-match i:term, i:list indc-decl, o:term.
+build-positive-match _ [] {{ unit }}.
+build-positive-match X KL R :-
+  coq.build-match X {{ positive }} do-rty (do-branch KL) R.
+
+pred do-rty i:term, i:list term,i:list term, o:term.
+do-rty _ _ _ {{ Type }}. % we leave a hole
+
+pred list-bitmask i:list A, o:list A, o:list A.
+list-bitmask [] [] [].
+list-bitmask [X] [X] [].
+list-bitmask [X,Y|L] [X|A] [Y|B] :- list-bitmask L A B.
+
+pred do-branch i:list indc-decl, i:term, i:term, i:list term, i:list term, o:term.
+do-branch [_|KS] {{ xO }} _ [P] _ R :-
+  list-bitmask KS KODD _,
+  build-positive-match P KODD R.
+do-branch [_|KS] {{ xI }} _ [P] _ R :-
+  list-bitmask KS _ KEVEN,
+  build-positive-match P KEVEN R.
+do-branch [constructor _ Arity|_] {{ xH }} _ _ _ R :-
+  to-tuple {coq.arity->term Arity} R.
+
+pred to-tuple i:term, o:term.
+to-tuple (prod N Ty F) {{ (lp:Ty1 * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
+  copy Ty Ty1,
+  @pi-decl N Ty x\ to-tuple (F x) X.
+to-tuple (prod _ Ty _) Ty1 :- copy Ty Ty1.
+to-tuple _ {{ unit }}. % other branches
+
+}
