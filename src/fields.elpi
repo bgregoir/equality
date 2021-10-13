@@ -1,12 +1,14 @@
 namespace fields {
 
-
+pred fields_t. % chose between fields_t and construct
+pred self o:term.
 
 pred main i:inductive, i:string, o:list prop.
 main I Prefix CL :- std.do! [
   
-  coq.env.indt-decl I Decl, % Decl is easier to manipulate than KL & co above
-  do-params Decl (global (indt I)) Body_t,
+  coq.bind-ind-parameters I 
+    (_\ params\ _\ bind-positive (kty->tuple I params))
+    Body_t,
   
   std.assert-ok! (coq.typecheck Body_t Ty_t) "fields generates illtyped fields_t",
 
@@ -15,7 +17,7 @@ main I Prefix CL :- std.do! [
 
   coq.env.indt I _ _ _ Arity _ _,
   std.assert! (tag-for I Tag) "no tag for this inductive",
-  coq.bind-ind-arity (global (indt I)) Arity (do-repack C_t Tag) Body,
+  coq.bind-ind-arity (global (indt I)) Arity (repack-as-tuple C_t Tag) Body,
 
   std.assert-ok! (coq.typecheck Body Ty) "fields generates illtyped fields",
 
@@ -25,42 +27,97 @@ main I Prefix CL :- std.do! [
   CL = [fields-for I C_t C],
   std.forall CL (x\ coq.elpi.accumulate _ "fields.db" (clause _ _ x)),
 
+  CL =>
+  coq.bind-ind-parameters I 
+    (_\ params\ _\ bind-positive (fun-tuple->kapp-proj I params))
+    Body_c,
+
+  std.assert-ok! (coq.typecheck Body_c Ty_c) "fields generates illtyped construct",
+
+  Name_c is Prefix ^ "construct",
+  coq.env.add-const Name_c Body_c Ty_c ff _, 
+
 ].
 
-pred do-params i:indt-decl, i:term, o:term.
-do-params (parameter ID _ Ty Decl) I (fun N Ty F) :-
-  coq.id->name ID N,
-  @pi-decl N Ty x\ do-params (Decl x) {coq.mk-app I [x]} (F x).
-do-params (inductive ID tt Arity Decl) Self (fun `x` {{ positive }} F) :-
-  @pi-inductive ID Arity i\
-    copy i Self =>
-    @pi-decl `x` {{ positive }} x\
-      build-positive-match x (Decl i) (F x).
-do-params (inductive _ ff _ _) _ _ :- std.assert! fail "records and coinductives not supported".
-do-params (record _ _ _ _) _ _ :- std.assert! fail "records and coinductives not supported".
+% match p with ... n => TyKn.1 * TyKn.2 ...
+pred kty->tuple i:inductive, i:list term, i:term, o:term.
+kty->tuple I Params P R :-
+  coq.env.indt I _ _ _ _ _ KT,
+  std.map KT (coq.subst-prod Params) L,
+  splay-over-positive P L {{ fun _ => Type }}
+    {{ unit }}
+    prod->tuple
+    R.
 
-pred build-positive-match i:term, i:list indc-decl, o:term.
-build-positive-match _ [] {{ unit }}.
-build-positive-match X KL R :-
-  coq.build-match X {{ positive }} do-rty (do-branch KL) R.
+% match p with ... n => fun x => Kn x.1 x.2 ...
+pred fun-tuple->kapp-proj i:inductive, i:list term, i:term, o:term.
+fun-tuple->kapp-proj I Params P R :-
+  coq.env.indt I _ _ _ _ KS KT,
+  fields-for I C_t _,
+  coq.mk-app (global (const C_t)) Params Fields_t,
+  coq.mk-app (global (indt I)) Params Ind,
+  std.map KS (c\coq.mk-app (global (indc c)) Params) L1,
+  std.map KT (coq.subst-prod Params) L2,
+  std.zip L1 L2 L,
+  splay-over-positive P L {{ fun p => lp:Fields_t p -> option lp:Ind }}
+    {{ fun p => None }}
+    fun-tuple->kapp
+    R.
 
-pred do-rty i:term, i:list term,i:list term, o:term.
-do-rty _ _ _ {{ Type }}. % we leave a hole
+pred fun-tuple->kapp i:(pair term term), o:term.
+fun-tuple->kapp (pr K Ty) {{ fun p => lp:(R p) }} :-
+  @pi-decl `p` _ p\ tuple->kapp Ty K p (R p).
+
+pred tuple->kapp i:term, i:term, i:term, o:term.
+tuple->kapp (prod N T F) K P R :- F = (x\prod _ _ _), !, % not the last one
+  @pi-decl N T x\ tuple->kapp (F x) {coq.mk-app K [{{ fst lp:P }}]} {{ snd lp:P }} R.
+tuple->kapp (prod N T F) K P R :-
+  @pi-decl N T x\ tuple->kapp (F x) {coq.mk-app K [P]} {{ snd lp:P }} R.
+tuple->kapp _ K _ {{ Some lp:K }}.
+
+% TODO: move in coq-lib.elpi
+pred coq.bind-ind-parameters i:inductive, i:(term -> list term -> list term -> term -> prop), o:term.
+coq.bind-ind-parameters I K O :-
+  coq.env.indt I _ _ N A _ _,
+  coq.bind-ind-parameters.aux N A [] [] K O.
+coq.bind-ind-parameters.aux 0 Ty Vars Tys K O :- !, K Ty {std.rev Vars} {std.rev Tys} O.
+coq.bind-ind-parameters.aux I (prod N T F) Vs Ts K (fun N T G) :- I > 0, !, J is I - 1,
+  @pi-decl N T x\
+    coq.bind-ind-parameters.aux J (F x) [x|Vs] [T|Ts] K (G x).
+coq.bind-ind-parameters.aux I (let N T B F) Vs Ts K (fun N T G) :- I > 0, !, J is I - 1,
+  @pi-def N T B x\
+    coq.bind-ind-parameters.aux J (F x) [x|Vs] [T|Ts] K (G x).
+coq.bind-ind-parameters.aux I T Vs Ts K O :- I > 0, whd1 T T', !,
+  coq.bind-ind-parameters.aux I T' Vs Ts K O.
+
+pred bind-positive i:(term -> term -> prop), o:term.
+bind-positive K {{ fun p : positive => lp:(R p) }} :-
+  @pi-decl `p` {{ positive }} p\ K p (R p).
+
+pred splay-over-positive i:term, i:list A, i:term,  i:term, i:(A -> term -> prop), o:term.
+splay-over-positive X L DoRty Def DoBranch R :-
+  splay-over-positive.aux X (x\x) L DoRty DoBranch Def R.
+pred splay-over-positive.aux i:term, i:(term -> term), i:list A, i:term, i:(A -> term -> prop), i:term, o:term.
+splay-over-positive.aux _ _ [] _ _ Def Def.
+splay-over-positive.aux X XCtx KL DoRty DoBranch Def R :-
+  coq.build-match X {{ positive }} (do-rty XCtx DoRty) (do-branch XCtx DoRty DoBranch Def KL) R.
+
+pred do-rty i:(term -> term), i:term, i:term, i:list term,i:list term, o:term.
+do-rty Ctx DoRty _ Vs _ R :-  P = Ctx {std.last Vs}, whd1 {{ lp:DoRty lp:P }} R.
 
 pred list-bitmask i:list A, o:list A, o:list A.
 list-bitmask [] [] [].
 list-bitmask [X] [X] [].
 list-bitmask [X,Y|L] [X|A] [Y|B] :- list-bitmask L A B.
 
-pred do-branch i:list indc-decl, i:term, i:term, i:list term, i:list term, o:term.
-do-branch [_|KS] {{ xO }} _ [P] _ R :-
+pred do-branch i:(term -> term), i:term, i:(A -> term -> prop), i:term, i:list A, i:term, i:term, i:list term, i:list term, o:term.
+do-branch PCtx DoRty DoBranch Def [_|KS] {{ xO }} _ [P] _ R :-
   list-bitmask KS KODD _,
-  build-positive-match P KODD R.
-do-branch [_|KS] {{ xI }} _ [P] _ R :-
+  splay-over-positive.aux P (x\ PCtx {{ xO lp:x }}) KODD DoRty DoBranch Def R.
+do-branch PCtx DoRty DoBranch Def [_|KS] {{ xI }} _ [P] _ R :-
   list-bitmask KS _ KEVEN,
-  build-positive-match P KEVEN R.
-do-branch [constructor _ Arity|_] {{ xH }} _ _ _ R :-
-  prod->tuple {coq.arity->term Arity} R.
+  splay-over-positive.aux P (x\ PCtx {{ xI lp:x }}) KEVEN DoRty DoBranch Def R.
+do-branch _ _ DoBranch _ [X|_] {{ xH }} _ _ _ R :- DoBranch X R.
 
 pred prod->tuple i:term, o:term.
 prod->tuple (prod N Ty F) {{ (lp:Ty1 * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
@@ -69,8 +126,8 @@ prod->tuple (prod N Ty F) {{ (lp:Ty1 * lp:X)%type }} :- (F = x\prod _ _ _), !, %
 prod->tuple (prod _ Ty _) Ty1 :- copy Ty Ty1.
 prod->tuple _ {{ unit }}. % other branches
 
-pred do-repack i:constant, i:constant, i:term, i:list term, i:list term, o:term.
-do-repack C_t Tag _ Vars Tys R :-
+pred repack-as-tuple i:constant, i:constant, i:term, i:list term, i:list term, o:term.
+repack-as-tuple C_t Tag _ Vars Tys R :-
   std.appendR Params [X] Vars,
   std.last Tys XTy,
   coq.mk-app (global (const C_t)) Params C_tp,

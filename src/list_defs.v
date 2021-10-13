@@ -50,12 +50,12 @@ Definition fields := @list_fields A. (*(x : list A) : fields_t (tag x) :=
   | a::l => (a, l)
   end.*)
 
-Definition construct (t:positive) : fields_t t -> option (list A) := 
+Definition construct := @ list_construct A. (*(t:positive) : fields_t t -> option (list A) := 
   match t with
   | 1 => fun _ => Some [::] 
   | 2 => fun p => Some (p.1 :: p.2)
   | _ => fun _ => None
-  end.
+  end.*)
 
 Lemma constructP x : construct (fields x) = Some x.
 Proof. by case: x. Qed.

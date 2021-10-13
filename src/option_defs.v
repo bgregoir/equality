@@ -48,12 +48,12 @@ Definition fields := @option_fields A. (* (x:option A) : fields_t (tag x) :=
   | Some a => a
   end.*)
 
-Definition construct (t:positive) : fields_t t -> option (option A) := 
+Definition construct := @option_construct A. (* (t:positive) : fields_t t -> option (option A) := 
   match t with
   | 1 => fun a => Some (Some a)
   | 2 => fun _ => Some None 
   | _ => fun _ => None
-  end.
+  end.*)
 
 Lemma constructP x : construct (fields x) = Some x.
 Proof. by case: x. Qed.
