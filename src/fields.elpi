@@ -6,9 +6,7 @@ pred self o:term.
 pred main i:inductive, i:string, o:list prop.
 main I Prefix CL :- std.do! [
   
-  coq.bind-ind-parameters I 
-    (_\ params\ _\ bind-positive (kty->tuple I params))
-    Body_t,
+  coq.bind-ind-parameters I (_\ params\ _\ kty->tuple I params) Body_t,
   
   std.assert-ok! (coq.typecheck Body_t Ty_t) "fields generates illtyped fields_t",
 
@@ -28,9 +26,7 @@ main I Prefix CL :- std.do! [
   std.forall CL (x\ coq.elpi.accumulate _ "fields.db" (clause _ _ x)),
 
   CL =>
-  coq.bind-ind-parameters I 
-    (_\ params\ _\ bind-positive (fun-tuple->kapp-proj I params))
-    Body_c,
+  coq.bind-ind-parameters I (_\ params\ _\ fun-tuple->kapp-proj I params) Body_c,
 
   std.assert-ok! (coq.typecheck Body_c Ty_c) "fields generates illtyped construct",
 
@@ -40,18 +36,19 @@ main I Prefix CL :- std.do! [
 ].
 
 % match p with ... n => TyKn.1 * TyKn.2 ...
-pred kty->tuple i:inductive, i:list term, i:term, o:term.
-kty->tuple I Params P R :-
+pred kty->tuple i:inductive, i:list term, o:term.
+kty->tuple I Params {{ fun p : positive => lp:(R p) }} :-
   coq.env.indt I _ _ _ _ _ KT,
   std.map KT (coq.subst-prod Params) L,
-  splay-over-positive P L {{ fun _ => Type }}
-    {{ unit }}
-    prod->tuple
-    R.
+  @pi-decl `p` {{ positive }} p\
+    splay-over-positive p L {{ fun _ => Type }}
+      {{ unit }}
+      prod->tuple
+      (R p).
 
 % match p with ... n => fun x => Kn x.1 x.2 ...
-pred fun-tuple->kapp-proj i:inductive, i:list term, i:term, o:term.
-fun-tuple->kapp-proj I Params P R :-
+pred fun-tuple->kapp-proj i:inductive, i:list term, o:term.
+fun-tuple->kapp-proj I Params {{ fun p : positive => lp:(R p) }} :-
   coq.env.indt I _ _ _ _ KS KT,
   fields-for I C_t _,
   coq.mk-app (global (const C_t)) Params Fields_t,
@@ -59,10 +56,11 @@ fun-tuple->kapp-proj I Params P R :-
   std.map KS (c\coq.mk-app (global (indc c)) Params) L1,
   std.map KT (coq.subst-prod Params) L2,
   std.zip L1 L2 L,
-  splay-over-positive P L {{ fun p => lp:Fields_t p -> option lp:Ind }}
-    {{ fun p => None }}
-    fun-tuple->kapp
-    R.
+  @pi-decl `p` {{ positive }} p\
+    splay-over-positive p L {{ fun x => lp:Fields_t x -> option lp:Ind }}
+      {{ fun _ => None }}
+      fun-tuple->kapp
+      (R p).
 
 pred fun-tuple->kapp i:(pair term term), o:term.
 fun-tuple->kapp (pr K Ty) {{ fun p => lp:(R p) }} :-
@@ -90,10 +88,6 @@ coq.bind-ind-parameters.aux I (let N T B F) Vs Ts K (fun N T G) :- I > 0, !, J i
 coq.bind-ind-parameters.aux I T Vs Ts K O :- I > 0, whd1 T T', !,
   coq.bind-ind-parameters.aux I T' Vs Ts K O.
 
-pred bind-positive i:(term -> term -> prop), o:term.
-bind-positive K {{ fun p : positive => lp:(R p) }} :-
-  @pi-decl `p` {{ positive }} p\ K p (R p).
-
 pred splay-over-positive i:term, i:list A, i:term,  i:term, i:(A -> term -> prop), o:term.
 splay-over-positive X L DoRty Def DoBranch R :-
   splay-over-positive.aux X (x\x) L DoRty DoBranch Def R.
@@ -120,10 +114,9 @@ do-branch PCtx DoRty DoBranch Def [_|KS] {{ xI }} _ [P] _ R :-
 do-branch _ _ DoBranch _ [X|_] {{ xH }} _ _ _ R :- DoBranch X R.
 
 pred prod->tuple i:term, o:term.
-prod->tuple (prod N Ty F) {{ (lp:Ty1 * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
-  copy Ty Ty1,
+prod->tuple (prod N Ty F) {{ (lp:Ty * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
   @pi-decl N Ty x\ prod->tuple (F x) X.
-prod->tuple (prod _ Ty _) Ty1 :- copy Ty Ty1.
+prod->tuple (prod _ Ty _) Ty.
 prod->tuple _ {{ unit }}. % other branches
 
 pred repack-as-tuple i:constant, i:constant, i:term, i:list term, i:list term, o:term.
