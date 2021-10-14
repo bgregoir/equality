@@ -55,8 +55,8 @@ Definition construct := @option_construct A. (* (t:positive) : fields_t t -> opt
   | _ => fun _ => None
   end.*)
 
-Lemma constructP x : construct (fields x) = Some x.
-Proof. by case: x. Qed.
+Definition constructP := @option_constructP A. (*x : construct (fields x) = Some x.
+Proof. by case: x. Qed.*)
 
 End Section. End AUX.
 

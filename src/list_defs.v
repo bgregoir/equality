@@ -57,8 +57,8 @@ Definition construct := @ list_construct A. (*(t:positive) : fields_t t -> optio
   | _ => fun _ => None
   end.*)
 
-Lemma constructP x : construct (fields x) = Some x.
-Proof. by case: x. Qed.
+Definition constructP := @list_constructP A. (*x : construct (fields x) = Some x.
+Proof. by case: x. Qed.*)
 
 End Section. End AUX.
 
