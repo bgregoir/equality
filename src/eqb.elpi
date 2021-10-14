@@ -1,0 +1,7 @@
+namespace eqb {
+
+pred main i:inductive, i:string, o:list prop.
+main U Prefix CL :-
+  true.
+
+}

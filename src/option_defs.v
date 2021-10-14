@@ -1,7 +1,7 @@
 Require Import Eqdep_dec.
 
 From mathcomp Require Import all_ssreflect.
-Require Import core_defs  tag fields.
+Require Import core_defs  tag fields eqb.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -70,6 +70,8 @@ Local Instance option_obj (A:Type) : @obj (option A) :=
 Section Section.
 
 Context (A:Type) (Aeqb : A -> A -> bool).
+
+Elpi eqb option.
 
 Definition eqb_fields (t:positive) : fields_t t -> fields_t t -> bool := 
   match t return fields_t t -> fields_t t -> bool with
