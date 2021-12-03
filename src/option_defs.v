@@ -22,56 +22,20 @@ Section Ind.
 
 End Ind.
 
-Module AUX.
-
-Section Section.
-Context {A : Type}.
-
 Elpi tag option.
-Definition tag {A} := @option_tag A. (*(x : option A) := 
-  match x with
-  | None     => 1
-  | Some _   => 2
-  end.
-*)
+Definition tag {A} := @option_tag A.
 
 Elpi fields option.
-Definition fields_t := @option_fields_t A. (*(t:positive) : Type := 
-  match t with
-  | 1 => A  
-  | _ => unit
-  end.*)
+Definition fields_t {A} := @option_fields_t A.
 
-Definition fields := @option_fields A. (* (x:option A) : fields_t (tag x) := 
-  match x return fields_t (tag x) with
-  | None => tt
-  | Some a => a
-  end.*)
+Definition fields {A} := @option_fields A.
 
-Definition construct := @option_construct A. (* (t:positive) : fields_t t -> option (option A) := 
-  match t with
-  | 1 => fun a => Some (Some a)
-  | 2 => fun _ => Some None 
-  | _ => fun _ => None
-  end.*)
+Definition construct {A} := @option_construct A.
 
-Definition constructP := @option_constructP A. (*x : construct (fields x) = Some x.
-Proof. by case: x. Qed.*)
-
-End Section. End AUX.
-
-Local Instance option_obj (A:Type) : @obj (option A) := 
-  {| tag        := AUX.tag
-   ; fields_t   := AUX.fields_t
-   ; fields     := AUX.fields
-   ; construct  := AUX.construct
-   ; constructP := AUX.constructP |}.
-
-Section Section.
-
-Context (A:Type) (Aeqb : A -> A -> bool).
+Definition constructP {A} := @option_constructP A.
 
 Elpi eqb option.
+Print option_eqb_fields.
 
 Definition eqb_fields (t:positive) : fields_t t -> fields_t t -> bool := 
   match t return fields_t t -> fields_t t -> bool with

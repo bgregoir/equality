@@ -16,17 +16,26 @@ Definition eqb_correct_on (eqb : A -> A -> bool) (a1:A) :=
 Definition eqb_refl_on (eqb : A -> A -> bool) (a:A) := 
   eqb a a.
 
+Definition eqb_correct (eqb : A -> A -> bool) := 
+  forall  (a1:A) a2, eqb a1 a2 -> a1 = a2.
+
+Definition eqb_reflexive (eqb : A -> A -> bool) := forall (a:A),
+  eqb a a.
+ 
+Lemma iffP2 (f : A -> A -> bool) (H1 : eqb_correct f) (H2 : eqb_reflexive f)
+ (x1 x2 : A) : reflect (x1 = x2) (f x1 x2).
+Proof. apply (iffP idP);[ apply H1 | move->; apply H2 ]. Qed.
+
 Definition eqax_on (eqb : A -> A -> bool) (a1:A) := 
    forall a2, reflect (a1 = a2) (eqb a1 a2).
 
-Class obj := 
-  { tag       : A -> positive
-  ; fields_t  : positive -> Type
-  ; fields    : forall a, fields_t (tag a)
-  ; construct : forall t, fields_t t -> option A 
-  ; constructP : forall a, construct (fields a) = Some a }.
+Variable tag       : A -> positive.
+Variable fields_t  : positive -> Type.
+Variable fields    : forall a, fields_t (tag a).
+Variable construct : forall t, fields_t t -> option A.
+Variable constructP : forall a, construct (fields a) = Some a.
 
-Context {o:obj} (eqb_fields : forall t, fields_t t -> fields_t t -> bool).
+Variable eqb_fields : forall t, fields_t t -> fields_t t -> bool.
 
 Definition eqb_body (t1:positive) (f1:fields_t t1) (x2:A) := 
   let t2 := tag x2 in

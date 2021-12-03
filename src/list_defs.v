@@ -9,143 +9,104 @@ Unset Printing Implicit Defensive.
 Require Import PArith.
 Open Scope positive_scope.
 
-Section Ind.
-
-  Context (A : Type) (PA : A -> Prop) (P : list A -> Prop).
-  Context (A_ind : forall a, PA a) (Hnil : P [::]) (Hcons : forall a l, PA a -> P l -> P (a::l)).
-
-  Fixpoint list_Ind (l : list A) : P l := 
-    match l with
-    | [::] => Hnil
-    | a :: l => Hcons (A_ind a) (list_Ind l)
-    end.
-
-End Ind.
-
-Module AUX.
-
-Section Section.
-Context {A : Type}.
-
 Elpi tag list.
-Definition tag {A} := @list_tag A. (*
-Definition tag (x : list A) := 
-  match x with
-  | [::]     => 1
-  | _ :: _   => 2
-  end.
-*)
+Definition tag {A} := @list_tag A.
 
 Elpi fields list.
-Definition fields_t := @list_fields_t A. (*(t : positive) : Type := 
-  match t with
-  | 2 => (A * list A)%type
-  | _ => unit
-  end.
-*)
+Definition fields_t {A} := @list_fields_t A.
 
-Definition fields := @list_fields A. (*(x : list A) : fields_t (tag x) := 
-  match x return fields_t (tag x) with
-  | [::] => tt
-  | a::l => (a, l)
-  end.*)
+Definition fields {A} := @list_fields A.
 
-Definition construct := @ list_construct A. (*(t:positive) : fields_t t -> option (list A) := 
-  match t with
-  | 1 => fun _ => Some [::] 
-  | 2 => fun p => Some (p.1 :: p.2)
-  | _ => fun _ => None
-  end.*)
+Definition construct {A} := @ list_construct A.
 
-Definition constructP := @list_constructP A. (*x : construct (fields x) = Some x.
-Proof. by case: x. Qed.*)
-
-End Section. End AUX.
-
-Local Instance list_obj (A:Type) : @obj (list A) := 
-  {| tag        := AUX.tag
-   ; fields_t   := AUX.fields_t
-   ; fields     := AUX.fields
-   ; construct  := AUX.construct
-   ; constructP := AUX.constructP |}.
-
-Section Section.
-
-Context (A:Type) (Aeqb : A -> A -> bool).
-
-Section Fields.
-
-Context (eqb : list A -> list A -> bool).
+Definition constructP {A} := @list_constructP A.
 
 Elpi eqb list.
+Print list_eqb_fields.
 
-Definition eqb_fields (t:positive) : fields_t t -> fields_t t -> bool := 
-  match t return fields_t t -> fields_t t -> bool with
-  | 1 => eq_op
-  | 2 => fun p1 p2 => Aeqb p1.1 p2.1 && eqb p1.2 p2.2
-  | _ => eq_op
-  end.
+Definition eqb_fields := list_eqb_fields.
 
-End Fields.
-
-Fixpoint eqb (x1 x2 : list A) := 
+About eqb_body.
+Definition list_eqb A (eqA : A -> A -> bool) := fix eqb (x1 x2 : list A) :=
   match x1 with
-  | [::] => eqb_body (eqb_fields eqb) (t1:=1) tt x2
-  | a::l => eqb_body (eqb_fields eqb) (t1:=2) (a,l) x2
+  | [::] => @eqb_body (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_eqb_fields A eqA eqb) (@list_tag A [::]) tt x2
+  | a::l => @eqb_body (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_eqb_fields A eqA eqb) (@list_tag A (a::l)) (a,l) x2
   end.
 
-Lemma eqb_correct_on_nil : eqb_correct_on eqb nil.
+Ltac eqb_correct_on__solver :=
+  by repeat (try case/andP; match goal with H : eqb_correct_on _ _ |- _ => move=> /=/H-> end).
+
+
+Lemma eqb_correct_on_nil A (eqA : A -> A -> bool) : eqb_correct_on (list_eqb eqA) nil.
 Proof.
-  rewrite /eqb_correct_on /eqb.
-  by apply (@eqb_body_correct _ (list_obj A) (eqb_fields eqb) [::]).
+  refine (
+    @eqb_body_correct (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_construct A) (@list_constructP A)
+      (@list_eqb_fields A eqA (@list_eqb A eqA))
+      [::] _).
+  eqb_correct_on__solver.
 Qed.
 
-Lemma eqb_correct_on_cons a l: 
-   eqb_correct_on Aeqb a -> 
-   eqb_correct_on eqb l -> 
-   eqb_correct_on eqb (a :: l).
+Lemma eqb_correct_on_cons A (eqA : A -> A -> bool): 
+   forall a, eqb_correct_on eqA a -> 
+   forall l, eqb_correct_on (list_eqb eqA) l -> 
+   eqb_correct_on (list_eqb eqA) (a :: l).
 Proof.
-  rewrite /eqb_correct_on => ha hl.
-  apply (@eqb_body_correct _ (list_obj A) (eqb_fields eqb) (a :: l)).
-  by move=> a2 /andP[] /= /ha -> /hl ->.
+  refine (fun a P1 l P2 =>
+    @eqb_body_correct (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_construct A) (@list_constructP A)
+      (@list_eqb_fields A eqA (@list_eqb A eqA))
+      (a::l) (fun f => _)). 
+  eqb_correct_on__solver.
 Qed.
 
-Lemma eqb_refl_on_nil : eqb_refl_on eqb [::].
-Proof. done. Qed.
 
-Lemma eqb_refl_on_cons a l:
-  eqb_refl_on Aeqb a -> 
-  eqb_refl_on eqb l -> 
-  eqb_refl_on eqb (a :: l).
+Ltac eqb_refl_on__solver :=
+  rewrite /eqb_fields_refl_on /=;
+  repeat
+    (reflexivity || apply/andP; split; assumption).
+
+Lemma eqb_refl_on_nil A (eqA : A -> A -> bool) : eqb_refl_on (list_eqb eqA) [::].
+Proof.
+  refine (
+  (@eqb_body_refl _ _ _ _ (@list_eqb_fields A eqA (list_eqb eqA)) [::]) _).
+  eqb_refl_on__solver.
+Qed.
+
+Lemma eqb_refl_on_cons A (eqA : A -> A -> bool):
+  forall a, eqb_refl_on eqA a -> 
+  forall l, eqb_refl_on (list_eqb eqA) l -> 
+  eqb_refl_on (list_eqb eqA) (a :: l).
 Proof. 
-  rewrite /eqb_refl_on=> ha hl.
-  apply (@eqb_body_refl _ (list_obj A) (eqb_fields eqb) (a :: l)). 
-  by rewrite /eqb_fields_refl_on /= ha hl.
+  refine (fun a ha l hl =>
+   (@eqb_body_refl _ _ _ _ (@list_eqb_fields A eqA (list_eqb eqA)) (a :: l)) _).
+   eqb_refl_on__solver.
 Qed.
 
-End Section.
 
-Section EqType.
+From elpi.apps Require Import derive.
+#[only(induction,param1_full,param1_trivial)] derive list.
 
-Context (A:eqType).
-
-Lemma eqb_correct (x:list A) : eqb_correct_on (eqb eq_op) x.
+Lemma list_eqb_correct (A:Type) (eqA: A -> A -> bool) (eqAc : eqb_correct eqA)
+  (x:list A) : eqb_correct_on (list_eqb eqA) x.
 Proof.
-  elim: x => [ | a l hrec].
-  + by apply eqb_correct_on_nil.
-  by apply eqb_correct_on_cons => // a'; apply /eqP.
+  refine (@list_induction _ _ _
+              (@eqb_correct_on_nil A eqA)
+              (@eqb_correct_on_cons A eqA)
+              x (@list_is_list_full _ _ eqAc x)).
 Qed.
 
-Lemma eqb_refl (x:list A) : eqb_refl_on (eqb eq_op) x.
+Lemma list_eqb_refl (A:Type) (eqA: A -> A -> bool) (eqAr : @eqb_reflexive A eqA)
+  (x:list A) : eqb_refl_on (list_eqb eqA) x.
 Proof.
-  elim x => [ | a l hrec].
-  + by apply eqb_refl_on_nil.
-  apply eqb_refl_on_cons => //; apply /eqxx.
+  refine (@list_induction _ _ _
+              (@eqb_refl_on_nil A eqA)
+              (@eqb_refl_on_cons A eqA)
+              x (@list_is_list_full _ _ eqAr x)).
 Qed.
 
-Lemma eqbP (x1 x2 : list A) : reflect (x1 = x2) (eqb eq_op x1 x2).
-Proof. apply (iffP idP);[ apply eqb_correct | move=> ->; apply eqb_refl]. Qed.
-
-End EqType.
+Lemma list_eqbP (A:Type) (eqA: A -> A -> bool)
+ (eqAc : eqb_correct eqA)
+ (eqAr : eqb_reflexive eqA) 
+: forall (x1 x2 : list A), reflect (x1 = x2) (list_eqb eqA x1 x2).
+Proof. refine (iffP2 (list_eqb_correct eqAc) (list_eqb_refl eqAr)). Qed.
 
 
