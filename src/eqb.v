@@ -7,8 +7,8 @@ Open Scope bool_scope.
 Elpi Db eqb.db lp:{{
 
 pred eqb-for
-  o:term,
-  o:term. % eqb
+  o:term, % type
+  o:term. % eqb_type
 
 }}.
 

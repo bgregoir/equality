@@ -13,6 +13,8 @@ main I Prefix CL :- std.do! [
   CL = [eqb-for _ (global (const C))], % TODO, quantify params
 ].
 
+% eqb-for {{ list lp:A }} {{ list_eq lp:F }} :- eq-for A F.
+
 pred do-params i:int, i:term, i:term, o:term.
 do-params J (prod _ T F) I {{ fun (p : lp:T) (eqp : p -> p -> bool) => lp:(R p eqp) }} :- J > 0, !, K is J - 1,
   @pi-decl `P` T p\
@@ -40,10 +42,12 @@ do-fields Ty {{ fun a b => lp:(R a b) }} :-
 
 do-fields.aux (prod N T F) P1 P2 {{ lp:X && lp:R }} :- F = (x\prod _ _ _), !, % not the last one
   eqb-for T EQB,
-  coq.mk-app EQB [{{ fst lp:P1 }}, {{ fst lp:P2 }}] X,
-  do-fields.aux (F {{ unit }}) {{ snd lp:P1 }} {{ snd lp:P2 }} R.
+  X = {{ lp:EQB (fst lp:P1) (fst lp:P2) }},
+  (pi x\ if (occurs x (F x)) (coq.error "dependent type not supported yet") true),
+  @pi-decl N T n\
+    do-fields.aux (F n) {{ snd lp:P1 }} {{ snd lp:P2 }} R.
 
-do-fields.aux (prod N T _) P1 P2 X :-
+do-fields.aux (prod _ T _) P1 P2 X :-
   eqb-for T EQB,
   coq.mk-app EQB [P1, P2] X.
 
