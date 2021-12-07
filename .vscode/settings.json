@@ -8,5 +8,6 @@
         "**/*.aux": true,
         "**/Makefile.coq": true,
         "**/Makefile.coq.conf": true
-    }
+    },
+    "coqtop.binPath": "/nix/store/bfygibqxf976p49svngbkzkls6fqwywz-coq-8.14.0/bin/"
 }

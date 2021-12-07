@@ -29,7 +29,10 @@ Print list_eqb_fields.
 
 Definition eqb_fields := list_eqb_fields.
 
-About eqb_body.
+From elpi.apps Require Import derive.
+#[only(induction,param1_full,param1_trivial)] derive list.
+
+
 
 Definition list_eqb A (eqA : A -> A -> bool) := fix eqb (x1 x2 : list A) :=
   match x1 with
@@ -38,7 +41,7 @@ Definition list_eqb A (eqA : A -> A -> bool) := fix eqb (x1 x2 : list A) :=
   end.
 
 Ltac eqb_correct_on__solver :=
-  by repeat (try case/andP; match goal with H : eqb_correct_on _ _ |- _ => move=> /=/H-> end).
+  by repeat (try case/andP; match reverse goal with H : eqb_correct_on _ _ |- _ => move=> /=/H{H}-> end).
 
 Elpi Accumulate eqb.db lp:{{
 
@@ -55,11 +58,24 @@ Elpi Accumulate eqb.db lp:{{
 
 
 
-
 Elpi Command eqcorrect.
 Elpi Accumulate Db eqb.db.
 Elpi Accumulate Db fields.db.
+Elpi Accumulate Db derive.induction.db.
 Elpi Accumulate File "src/elpi-ltac.elpi".
+
+(*
+Elpi Db eqb_correct.db lp:{{
+
+% this is how one registers the fields_t, fields and construct[P]
+% constants to an inductive and let other elpi commands use that piece of info
+pred eqb_correct-for
+  o:constructor,   % constructor name XXX of type YYY
+  o:constant. % YYY_eq_correct_on_XXX 
+}}.
+*)
+Print list_induction.
+
 Elpi Accumulate lp:{{
 
   main [str S] :-
@@ -70,20 +86,23 @@ Elpi Accumulate lp:{{
 
 pred eqb.main i:inductive, i:string, o:list prop.
 eqb.main I Prefix [] :- std.do! [
-  coq.env.indt I _ _ N _ Ks KTs,
-  KTs = [_,KT],
-  Ks = [_,K],
+  % Add error msg if not a inductive ?
+  coq.env.indt I _ _ N TI Ks KTs,
+  std.map2 KTs Ks (add-decl Prefix N) L,
+  induction-db I Indu,
+  std.map L (c\ d\ d = global (const c)) Lt,
+  coq.say "TI=", coq.say TI,
+  KTs = [TTTT, _],
+  coq.say "TTTT=" TTTT,
+  add-indu TTTT Indu Lt
+].
+
+pred add-decl i:string, i:int, i:term, i:constructor, o : constant.
+add-decl Prefix N KT K P:- std.do![  
   do-params N KT (global (indc K)) R,
   std.assert-ok! (coq.typecheck R Ty) "R casse",
-  /*
-
-  coq.ltac.collect-goals R [G] _,
-  coq.ltac.open (coq.ltac.call "eqb_correct_on__solver" []) G [],
-  std.assert-ok! (coq.typecheck R Ty) "R casse2",
-*/
   Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)},
-  coq.env.add-const Name R Ty @opaque! _,
-  
+  coq.env.add-const Name R Ty @opaque! P,
 ].
 
 % forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..
@@ -114,25 +133,47 @@ do-args T K {{ lp:B : eqb_correct_on lp:Cmp lp:K }} :- std.do! [
   coq.ltac.open (coq.ltac.call "eqb_correct_on__solver" []) G [],
 ].
 
+pred add-indu i:term, i:term, i:list term.
+add-indu (prod N T F) Indu LS :-!,
+  coq.say T,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  @pi-decl `eqAc` {{ eqb_correct lp:eqA }} eqAc\
+  eqb-for a eqA =>
+  coq.say "CCC",  
+  coq.say LS,
+  std.map LS (t\ t'\ t' =  {{ lp:t lp:a}}) LS',
+  coq.say "BBB",    
+  add-indu (F a) Indu LS'.
+add-indu T Indu LS:-
+ coq.say Indu, 
+ coq.say LS
+.
+  
 }}.
 Elpi Typecheck.
 
-Elpi eqcorrect list.
+Elpi eqcorrect list. 
+
+
+Elpi Query lp:{{
+  std.assert! (coq.locate "list" (indt I)) "Not an inductive type",
+  induction-db I GR}}.
 
 About list_eqb_correct_on_cons.
 
-Definition eqb_correct_on_cons := list_eqb_correct_on_cons
-
+(* Definition eqb_correct_on_cons := list_eqb_correct_on_cons. *)
+(*
 Lemma eqb_correct_on_nil A (eqA : A -> A -> bool) : eqb_correct_on (list_eqb eqA) nil.
 Proof.
   refine (
     @eqb_body_correct (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_construct A) (@list_constructP A)
       (@list_eqb_fields A eqA (@list_eqb A eqA))
-      [::] _).
+      [::] (fun f => _)).
   eqb_correct_on__solver.
 Qed.
 
-(*
+
 Lemma eqb_correct_on_cons A (eqA : A -> A -> bool): 
    forall a, eqb_correct_on eqA a -> 
    forall l, eqb_correct_on (list_eqb eqA) l -> 
@@ -142,10 +183,12 @@ Proof.
     @eqb_body_correct (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_construct A) (@list_constructP A)
       (@list_eqb_fields A eqA (@list_eqb A eqA))
       (a::l) (fun f => _)). 
+  
+  
   eqb_correct_on__solver.
 Qed.
-
 *)
+
 
 Ltac eqb_refl_on__solver :=
   rewrite /eqb_fields_refl_on /=;
@@ -170,9 +213,18 @@ Proof.
 Qed.
 
 
-From elpi.apps Require Import derive.
-#[only(induction,param1_full,param1_trivial)] derive list.
 
+
+Inductive t (A B :Type):= 
+  | C1 of A
+  | C2 of B
+  | C3 of list (t A B)
+  | C4.
+
+#[only(induction,param1_full,param1_trivial)] derive t.
+Check t_induction.
+
+induction-db GR (global (const I))
 Lemma list_eqb_correct (A:Type) (eqA: A -> A -> bool) (eqAc : eqb_correct eqA)
   (x:list A) : eqb_correct_on (list_eqb eqA) x.
 Proof.
