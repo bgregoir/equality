@@ -88,17 +88,16 @@ pred eqb.main i:inductive, i:string, o:list prop.
 eqb.main I Prefix [] :- std.do! [
   % Add error msg if not a inductive ?
   coq.env.indt I _ _ N TI Ks KTs,
-  std.map2 KTs Ks (add-decl Prefix N) L,
+  std.map2 KTs Ks (add-decl Prefix N) Lt,
   induction-db I Indu,
-  std.map L (c\ d\ d = global (const c)) Lt,
   coq.say "TI=", coq.say TI,
   KTs = [TTTT, _],
   coq.say "TTTT=" TTTT,
-  add-indu TTTT Indu Lt
+  add-indu TTTT Indu Lt R,
 ].
 
-pred add-decl i:string, i:int, i:term, i:constructor, o : constant.
-add-decl Prefix N KT K P:- std.do![  
+pred add-decl i:string, i:int, i:term, i:constructor, o:term.
+add-decl Prefix N KT K (global (const P)) :- std.do![  
   do-params N KT (global (indc K)) R,
   std.assert-ok! (coq.typecheck R Ty) "R casse",
   Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)},
@@ -133,34 +132,39 @@ do-args T K {{ lp:B : eqb_correct_on lp:Cmp lp:K }} :- std.do! [
   coq.ltac.open (coq.ltac.call "eqb_correct_on__solver" []) G [],
 ].
 
-pred add-indu i:term, i:term, i:list term.
-add-indu (prod N T F) Indu LS :-!,
+pred add-indu i:term, i:term, i:list term, o:term.
+add-indu (prod N T F) Indu LS {{ fun (a : lp:T) (eqA : a -> a -> bool) (eqAc : eqb_correct eqA) => lp:(R a eqA eqAc) }} :- !,
   coq.say T,
   @pi-decl N T a\
   @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
   @pi-decl `eqAc` {{ eqb_correct lp:eqA }} eqAc\
-  eqb-for a eqA =>
+  % eqb-for a eqA =>
   coq.say "CCC",  
   coq.say LS,
-  std.map LS (t\ t'\ t' =  {{ lp:t lp:a}}) LS',
-  coq.say "BBB",    
-  add-indu (F a) Indu LS'.
-add-indu T Indu LS:-
- coq.say Indu, 
- coq.say LS
-.
-  
+  coq.say "BBB",
+ 
+  % Full' = {{ Full  eqAc }}
+
+  add-indu (F a) {coq.mk-app Indu [a,eqAc]} {std.map LS (t\coq.mk-app t [a, eqA])} (R a eqA eqAc).
+add-indu T Indu LS {{ fun x => lp:(R x) }} :-
+ @pi-decl N T x\
+ % coq.mk-app Indu [_|LS , x , {coq.mk-app Full [x]} ] TOTO, 
+ coq.say {coq.term->string TOTO}.
 }}.
 Elpi Typecheck.
 
+Elpi Trace.
+Elpi Query lp:{{
+
+  pi x\ x = A x
+
+}}.
+
+Elpi Print eqcorrect.
+Set Printing All.
 Elpi eqcorrect list. 
 
 
-Elpi Query lp:{{
-  std.assert! (coq.locate "list" (indt I)) "Not an inductive type",
-  induction-db I GR}}.
-
-About list_eqb_correct_on_cons.
 
 (* Definition eqb_correct_on_cons := list_eqb_correct_on_cons. *)
 (*
@@ -224,15 +228,16 @@ Inductive t (A B :Type):=
 #[only(induction,param1_full,param1_trivial)] derive t.
 Check t_induction.
 
-induction-db GR (global (const I))
 Lemma list_eqb_correct (A:Type) (eqA: A -> A -> bool) (eqAc : eqb_correct eqA)
   (x:list A) : eqb_correct_on (list_eqb eqA) x.
 Proof.
   refine (@list_induction _ _ _
-              (@eqb_correct_on_nil A eqA)
-              (@eqb_correct_on_cons A eqA)
+              (@list_eqb_correct_on_nil A eqA)
+              (@list_eqb_correct_on_cons A eqA)
               x (@list_is_list_full _ _ eqAc x)).
 Qed.
+Set Printing All.
+Print list_eqb_correct.
 
 Lemma list_eqb_refl (A:Type) (eqA: A -> A -> bool) (eqAr : @eqb_reflexive A eqA)
   (x:list A) : eqb_refl_on (list_eqb eqA) x.
