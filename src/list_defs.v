@@ -25,57 +25,17 @@ Definition constructP {A} := @list_constructP A.
 
 Elpi eqb list.
 
-Print list_eqb_fields.
-
-Definition eqb_fields := list_eqb_fields.
-
 From elpi.apps Require Import derive.
 #[only(induction,param1_full,param1_trivial)] derive list.
 
-
-
-Definition list_eqb A (eqA : A -> A -> bool) := fix eqb (x1 x2 : list A) :=
-  match x1 with
-  | [::] => @eqb_body (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_eqb_fields A eqA eqb) (@list_tag A [::]) tt x2
-  | a::l => @eqb_body (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_eqb_fields A eqA eqb) (@list_tag A (a::l)) (a,l) x2
-  end.
-
 Ltac eqb_correct_on__solver :=
   by repeat (try case/andP; match reverse goal with H : eqb_correct_on _ _ |- _ => move=> /=/H{H}-> end).
-
-Elpi Accumulate eqb.db lp:{{
-
-  pred  eqb-fields i:term, o:term.
-
-  eqb-for {{ list lp:A }} {{ @list_eqb lp:A lp:F }} :- eqb-for A F.
-  eqb-fields {{ list lp:A }} {{ @list_eqb_fields lp:A lp:EA lp:ELA }} :- eqb-for A EA, eqb-for {{ list lp:A }} ELA.
-  %eqb-for {{ forall x : lp:S, lp:(T x) }} {{ @prod_eqb lp:A lp:F lp:B lp:G }} :- eqb-for A F, eqb-for B G.
-  % eqb-for {{ unit }} {{ true }}.
-
-}}.
-
-
-
-
 
 Elpi Command eqcorrect.
 Elpi Accumulate Db eqb.db.
 Elpi Accumulate Db fields.db.
 Elpi Accumulate Db derive.induction.db.
 Elpi Accumulate File "src/elpi-ltac.elpi".
-
-(*
-Elpi Db eqb_correct.db lp:{{
-
-% this is how one registers the fields_t, fields and construct[P]
-% constants to an inductive and let other elpi commands use that piece of info
-pred eqb_correct-for
-  o:constructor,   % constructor name XXX of type YYY
-  o:constant. % YYY_eq_correct_on_XXX 
-}}.
-*)
-Print list_induction.
-
 Elpi Accumulate lp:{{
 
   main [str S] :-
@@ -153,46 +113,7 @@ add-indu T Indu LS {{ fun x => lp:(R x) }} :-
 }}.
 Elpi Typecheck.
 
-Elpi Trace.
-Elpi Query lp:{{
-
-  pi x\ x = A x
-
-}}.
-
-Elpi Print eqcorrect.
-Set Printing All.
 Elpi eqcorrect list. 
-
-
-
-(* Definition eqb_correct_on_cons := list_eqb_correct_on_cons. *)
-(*
-Lemma eqb_correct_on_nil A (eqA : A -> A -> bool) : eqb_correct_on (list_eqb eqA) nil.
-Proof.
-  refine (
-    @eqb_body_correct (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_construct A) (@list_constructP A)
-      (@list_eqb_fields A eqA (@list_eqb A eqA))
-      [::] (fun f => _)).
-  eqb_correct_on__solver.
-Qed.
-
-
-Lemma eqb_correct_on_cons A (eqA : A -> A -> bool): 
-   forall a, eqb_correct_on eqA a -> 
-   forall l, eqb_correct_on (list_eqb eqA) l -> 
-   eqb_correct_on (list_eqb eqA) (a :: l).
-Proof.
-  refine (fun a P1 l P2 =>
-    @eqb_body_correct (list A) (@list_tag A) (@list_fields_t A) (@list_fields A) (@list_construct A) (@list_constructP A)
-      (@list_eqb_fields A eqA (@list_eqb A eqA))
-      (a::l) (fun f => _)). 
-  
-  
-  eqb_correct_on__solver.
-Qed.
-*)
-
 
 Ltac eqb_refl_on__solver :=
   rewrite /eqb_fields_refl_on /=;

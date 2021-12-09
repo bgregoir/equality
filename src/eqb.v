@@ -1,6 +1,9 @@
 From elpi Require Import elpi.
 From Coq Require Import PArith.
+
+Require Import core_defs.
 Require Export tag fields.
+
 Open Scope positive_scope.
 Open Scope bool_scope.
 
@@ -9,6 +12,11 @@ Elpi Db eqb.db lp:{{
 pred eqb-for
   o:term, % type
   o:term. % eqb_type
+
+pred eqb-fields
+  o:term, % type
+  o:term. % eq_fields_type
+
 
 }}.
 
