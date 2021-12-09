@@ -15,6 +15,12 @@ Open Scope positive_scope.
 Ltac eqb_correct_on__solver :=
   by repeat (try case/andP; match reverse goal with H : eqb_correct_on _ _ |- _ => move=> /=/H{H}-> end).
 
+Ltac eqb_refl_on__solver :=
+  rewrite /eqb_fields_refl_on /=;
+  repeat
+    (reflexivity || apply/andP; split; assumption).
+  
+(* TODO: move to a file *)
 Elpi Command eqcorrect.
 Elpi Accumulate Db eqb.db.
 Elpi Accumulate Db fields.db.
@@ -99,11 +105,6 @@ Elpi Typecheck.
 
 Elpi eqcorrect list. 
 
-Ltac eqb_refl_on__solver :=
-  rewrite /eqb_fields_refl_on /=;
-  repeat
-    (reflexivity || apply/andP; split; assumption).
-
 Lemma eqb_refl_on_nil A (eqA : A -> A -> bool) : eqb_refl_on (list_eqb eqA) [::].
 Proof.
   refine (
@@ -129,8 +130,6 @@ Proof.
               (@list_eqb_correct_on_cons A eqA)
               x (@list_is_list_full _ _ eqAc x)).
 Qed.
-Set Printing All.
-Print list_eqb_correct.
 
 Lemma list_eqb_refl (A:Type) (eqA: A -> A -> bool) (eqAr : @eqb_reflexive A eqA)
   (x:list A) : eqb_refl_on (list_eqb eqA) x.
