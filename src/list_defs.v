@@ -9,24 +9,12 @@ Unset Printing Implicit Defensive.
 Require Import PArith.
 Open Scope positive_scope.
 
-Elpi tag list.
-
-Definition tag {A} := @list_tag A.
-
-Elpi fields list.
-
-Definition fields_t {A} := @list_fields_t A.
-
-Definition fields {A} := @list_fields A.
-
-Definition construct {A} := @ list_construct A.
-
-Definition constructP {A} := @list_constructP A.
-
-Elpi eqb list.
-
 From elpi.apps Require Import derive.
+
 #[only(induction,param1_full,param1_trivial)] derive list.
+Elpi tag     list.
+Elpi fields  list.
+Elpi eqb     list.
 
 Ltac eqb_correct_on__solver :=
   by repeat (try case/andP; match reverse goal with H : eqb_correct_on _ _ |- _ => move=> /=/H{H}-> end).
@@ -136,18 +124,6 @@ Proof.
    (@eqb_body_refl _ _ _ _ (@list_eqb_fields A eqA (list_eqb eqA)) _) _).
    eqb_refl_on__solver.
 Qed.
-
-
-
-
-Inductive t (A B :Type):= 
-  | C1 of A
-  | C2 of B
-  | C3 of list (t A B)
-  | C4.
-
-#[only(induction,param1_full,param1_trivial)] derive t.
-Check t_induction.
 
 Lemma list_eqb_correct (A:Type) (eqA: A -> A -> bool) (eqAc : eqb_correct eqA)
   (x:list A) : eqb_correct_on (list_eqb eqA) x.
