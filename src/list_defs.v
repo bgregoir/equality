@@ -1,20 +1,16 @@
-Require Import Eqdep_dec.
-
-From mathcomp Require Import all_ssreflect.
+From elpi.apps Require Import derive.
 Require Import core_defs tag fields eqb.
 
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Require Import PArith.
-Open Scope positive_scope.
-
-From elpi.apps Require Import derive.
 
 #[only(induction,param1_full,param1_trivial)] derive list.
 Elpi tag     list.
 Elpi fields  list.
 Elpi eqb     list.
+
+From mathcomp Require Import all_ssreflect.
+Require Import PArith.
+Open Scope positive_scope.
 
 Ltac eqb_correct_on__solver :=
   by repeat (try case/andP; match reverse goal with H : eqb_correct_on _ _ |- _ => move=> /=/H{H}-> end).
