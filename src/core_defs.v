@@ -14,13 +14,13 @@ Definition eqb_correct_on (eqb : A -> A -> bool) (a1:A) :=
    forall a2, eqb a1 a2 -> a1 = a2.
 
 Definition eqb_refl_on (eqb : A -> A -> bool) (a:A) := 
-  eqb a a.
+  is_true (eqb a a).
 
 Definition eqb_correct (eqb : A -> A -> bool) := 
   forall (a1:A), eqb_correct_on eqb a1.
   
-Definition eqb_reflexive (eqb : A -> A -> bool) := forall (a:A),
-  eqb a a.
+Definition eqb_reflexive (eqb : A -> A -> bool) := 
+  forall (a:A), eqb_refl_on eqb a. 
  
 Lemma iffP2 (f : A -> A -> bool) (H1 : eqb_correct f) (H2 : eqb_reflexive f)
  (x1 x2 : A) : reflect (x1 = x2) (f x1 x2).
