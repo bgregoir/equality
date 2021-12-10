@@ -17,8 +17,8 @@ Definition eqb_refl_on (eqb : A -> A -> bool) (a:A) :=
   eqb a a.
 
 Definition eqb_correct (eqb : A -> A -> bool) := 
-  forall  (a1:A) a2, eqb a1 a2 -> a1 = a2.
-
+  forall (a1:A), eqb_correct_on eqb a1.
+  
 Definition eqb_reflexive (eqb : A -> A -> bool) := forall (a:A),
   eqb a a.
  

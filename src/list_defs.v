@@ -19,13 +19,16 @@ Ltac eqb_refl_on__solver :=
   rewrite /eqb_fields_refl_on /=;
   repeat
     (reflexivity || apply/andP; split; assumption).
-  
+
+
 (* TODO: move to a file *)
 Elpi Command eqcorrect.
 Elpi Accumulate Db eqb.db.
 Elpi Accumulate Db fields.db.
 Elpi Accumulate Db derive.induction.db.
+Elpi Accumulate Db derive.param1.trivial.db.
 Elpi Accumulate File "src/elpi-ltac.elpi".
+
 Elpi Accumulate lp:{{
 
   main [str S] :-
@@ -40,10 +43,15 @@ eqb.main I Prefix [] :- std.do! [
   coq.env.indt I _ _ N TI Ks KTs,
   std.map2 KTs Ks (add-decl Prefix N) Lt,
   induction-db I Indu,
-  coq.say "TI=", coq.say TI,
-  KTs = [TTTT, _],
-  coq.say "TTTT=" TTTT,
-  add-indu TTTT Indu Lt R,
+  %param1-trivial-db (global (indt I)) Is_full,
+  %coq.say "IS_full = " Is_full,
+  coq.say "TI =" TI, 
+  add-indu TI Indu {{@list_is_list_full}} Lt R,
+  coq.say "Indu = " Indu,
+  coq.say "R = " R, 
+  std.assert-ok! (coq.elaborate-skeleton R Ty R2) "fail demande a JC", 
+  Name is Prefix ^ "eqb_correct",
+  coq.env.add-const Name R2 Ty @opaque! P,
 ].
 
 pred add-decl i:string, i:int, i:term, i:constructor, o:term.
@@ -82,28 +90,28 @@ do-args T K {{ lp:B : eqb_correct_on lp:Cmp lp:K }} :- std.do! [
   coq.ltac.open (coq.ltac.call "eqb_correct_on__solver" []) G [],
 ].
 
-pred add-indu i:term, i:term, i:list term, o:term.
-add-indu (prod N T F) Indu LS {{ fun (a : lp:T) (eqA : a -> a -> bool) (eqAc : eqb_correct eqA) => lp:(R a eqA eqAc) }} :- !,
+pred add-indu i:term, i:term, i:term, i:list term, o:term.
+add-indu (prod N T F) Indu Is_full LS {{ fun (a : lp:T) (eqA : a -> a -> bool) (eqAc : eqb_correct eqA) => lp:(R a eqA eqAc) }} :- !,
   coq.say T,
   @pi-decl N T a\
   @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
   @pi-decl `eqAc` {{ eqb_correct lp:eqA }} eqAc\
   % eqb-for a eqA =>
-  coq.say "CCC",  
-  coq.say LS,
-  coq.say "BBB",
- 
-  % Full' = {{ Full  eqAc }}
+  add-indu (F a) 
+     {{ lp:Indu lp:a (eqb_correct_on lp:eqA)}} 
+     {{ lp:Is_full lp:a (eqb_correct_on lp:eqA) lp:eqAc}}
+    {std.map LS (t\coq.mk-app t [a, eqA])} (R a eqA eqAc).
 
-  add-indu (F a) {coq.mk-app Indu [a,eqAc]} {std.map LS (t\coq.mk-app t [a, eqA])} (R a eqA eqAc).
-add-indu T Indu LS {{ fun x => lp:(R x) }} :-
- @pi-decl N T x\
- % coq.mk-app Indu [_|LS , x , {coq.mk-app Full [x]} ] TOTO, 
- coq.say {coq.term->string TOTO}.
+add-indu _T Indu Is_full LS {{ fun x => lp:(R x) }} :- 
+  @pi-decl `x` _ x\
+  coq.mk-app { coq.mk-app Indu [_|LS] } [x, {{ lp:Is_full lp:x}}] (R x).
+  
 }}.
 Elpi Typecheck.
 
-Elpi eqcorrect list. 
+Set Printing All.
+Elpi eqcorrect list.
+Print list_eqb_correct.
 
 Lemma eqb_refl_on_nil A (eqA : A -> A -> bool) : eqb_refl_on (list_eqb eqA) [::].
 Proof.
@@ -122,15 +130,7 @@ Proof.
    eqb_refl_on__solver.
 Qed.
 
-Lemma list_eqb_correct (A:Type) (eqA: A -> A -> bool) (eqAc : eqb_correct eqA)
-  (x:list A) : eqb_correct_on (list_eqb eqA) x.
-Proof.
-  refine (@list_induction _ _ _
-              (@list_eqb_correct_on_nil A eqA)
-              (@list_eqb_correct_on_cons A eqA)
-              x (@list_is_list_full _ _ eqAc x)).
-Qed.
-
+(*
 Lemma list_eqb_refl (A:Type) (eqA: A -> A -> bool) (eqAr : @eqb_reflexive A eqA)
   (x:list A) : eqb_refl_on (list_eqb eqA) x.
 Proof.
@@ -146,4 +146,4 @@ Lemma list_eqbP (A:Type) (eqA: A -> A -> bool)
 : forall (x1 x2 : list A), reflect (x1 = x2) (list_eqb eqA x1 x2).
 Proof. refine (iffP2 (list_eqb_correct eqAc) (list_eqb_refl eqAr)). Qed.
 
-
+*)
