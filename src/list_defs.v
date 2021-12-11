@@ -46,14 +46,27 @@ eqb.main I Prefix [] :- std.do! [
   std.map2 KTs Ks (add-decl-refl Prefix N) Lt-refl,
   induction-db I Indu,
   reali (global (indt I)) IR, % param1-db, really
+
   add-indu-correct TI Indu IR Lt-correct R,
   std.assert-ok! (coq.typecheck R Ty) "fail demande a JC", 
   Name is Prefix ^ "eqb_correct",
-  coq.env.add-const Name R Ty @opaque! _,
+  coq.env.add-const Name R Ty @opaque! Correct,
+
   add-indu-refl TI Indu IR Lt-refl Rr,
   std.assert-ok! (coq.typecheck Rr Tyr) "fail demande a JC", 
   Namer is Prefix ^ "eqb_refl",
-  coq.env.add-const Namer Rr Tyr @opaque! _,
+  coq.env.add-const Namer Rr Tyr @opaque! Refl,
+
+  add-reflect TI (global (const Correct)) (global (const Refl)) Breflect,
+  std.assert-ok! (coq.typecheck Breflect Treflect) "fail demande a JC", 
+  Namerf is Prefix ^ "eqb_reflect",
+  coq.env.add-const Namerf Breflect Treflect @opaque! Reflect,
+
+  add-eqP TI (global (indt I)) (global (const Reflect)) BeqP,
+  std.assert-ok! (coq.typecheck BeqP TeqP) "fail demande a JC", 
+  NameeqP is Prefix ^ "eqbP",
+  coq.env.add-const NameeqP BeqP TeqP @opaque! _EqP,
+
 ].
 
 /************************** correct *********************************************/
@@ -162,15 +175,33 @@ add-indu-refl _T Indu IR LS {{ fun x => lp:(R x) }} :-
     std.append LS [x, app[Is_full,x]] (Args x),
     R x = app [Indu, _ | Args x].
  
+/***************************** Equality *************************************/
+
+pred add-reflect i:term, i:term, i:term, o:term.
+add-reflect (prod N T F) Correct Refl 
+   {{fun (a:lp:T) (eqA:a -> a -> bool) (H: forall x1 x2, reflect (x1 = x2) (eqA x1 x2)) => lp:(R a eqA H) }} :- !,
+@pi-decl N T a\
+@pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+@pi-decl `H` {{ forall x1 x2, reflect (x1 = x2) (lp:eqA x1 x2)}} H\
+add-reflect (F a) 
+    {{lp:Correct lp:a lp:eqA (fun (a1 a2 : lp:a) => @elimT (@eq lp:a a1 a2) (lp:eqA a1 a2) (lp:H a1 a2))}}
+    {{lp:Refl lp:a lp:eqA (fun (a1: lp:a) => @introT (@eq lp:a a1 a1) (lp:eqA a1 a1) (lp:H a1 a1) (@erefl lp:a a1))}}
+    (R a eqA H).
+
+add-reflect _T Correct Refl {{iffP2 lp:Correct lp:Refl}}.
+
+pred add-eqP i:term, i:term, i:term, o:term.
+add-eqP (prod N T F) Ty Reflect {{fun (a:eqType) => lp:(R a)}} :- !,
+  @pi-decl N {{eqType}} a\
+    eqb-for {{Equality.sort lp:a}} {{@eq_op lp:a}} =>
+    add-eqP (F a)
+        {{lp:Ty (Equality.sort lp:a)}}
+        {{lp:Reflect (Equality.sort lp:a) (@eq_op lp:a) (@eqP lp:a)}} (R a).
+        
+add-eqP _ Ty Reflect {{lp:Reflect : Equality.axiom lp:Cmp}} :- 
+ eqb-for Ty Cmp.          
+
 }}.
 Elpi Typecheck.
 
 Elpi eqcorrect list.
-Print list_eqb_refl.
-Print list_eqb_correct_on_cons.
-
-Lemma list_eqbP (A:Type) (eqA: A -> A -> bool)
- (eqAc : eqb_correct eqA)
- (eqAr : eqb_reflexive eqA) 
-: forall (x1 x2 : list A), reflect (x1 = x2) (list_eqb eqA x1 x2).
-Proof. refine (iffP2 (list_eqb_correct eqAc) (list_eqb_refl eqAr)). Qed.
