@@ -25,6 +25,19 @@ main I Prefix [CL] :- std.do! [
 
 ].
 
+pred run-solver i:sealed-goal, i:string.
+run-solver G Name :-
+  if (coq.ltac.open (coq.ltac.call Name []) G []) true
+     (coq.sealed-goal->string G SG,
+      std.fatal-error {calc ( "solver " ^ Name ^ " fails on goal:\n" ^ SG )}).
+
+coq.sealed-goal->string (nabla G) R :- pi x\  coq.sealed-goal->string (G x) R.
+coq.sealed-goal->string (seal (goal Ctx _ Ty _ _)) R :-
+  Ctx => (std.map {std.rev Ctx} coq.ctx->string L, coq.term->string Ty G, R is {std.string.concat "\n" L} ^ "\n===============\n" ^ G).
+
+coq.ctx->string (decl X _ Ty) R :- R is {coq.term->string X} ^ " : " ^ {coq.term->string Ty}.
+coq.ctx->string (def X _ Ty B) R :- R is {coq.term->string X} ^ " : " ^ {coq.term->string Ty} ^ " := " ^ {coq.term->string B}.
+
 /************************** correct *********************************************/
 
 pred add-decl-correct i:string, i:int, i:term, i:constructor, o:term.
@@ -60,7 +73,7 @@ do-args-correct T K {{ lp:B : eqb_correct_on lp:Cmp lp:K }} :- std.do! [
   B = {{ @eqb_body_correct _ _ _ _ _ lp:ConstructP lp:Fields lp:K (fun f => _) }},
   coq.typecheck {{ lp:B : eqb_correct_on lp:Cmp lp:K }} _ _,
   coq.ltac.collect-goals B [G] _,
-  std.assert! (coq.ltac.open (coq.ltac.call "eqb_correct_on__solver" []) G []) "solver broken",
+  run-solver G "eqb_correct_on__solver",
 ].
 
 pred add-indu-correct i:term, i:term, i:term, i:list term, o:term.
@@ -111,7 +124,7 @@ do-args-refl T K {{ lp:B : eqb_refl_on lp:Cmp lp:K }} :- std.do! [
   B = {{ @eqb_body_refl _ _ _ _ lp:Fields lp:K _ }},
   coq.typecheck {{ lp:B : eqb_refl_on lp:Cmp lp:K }} _ _,
   coq.ltac.collect-goals B [G] _,
-  std.assert! (coq.ltac.open (coq.ltac.call "eqb_refl_on__solver" []) G []) "solver broken",
+  run-solver G "eqb_refl_on__solver",
 ].
 
 pred add-indu-refl i:term, i:term, i:term, i:list term, o:term.

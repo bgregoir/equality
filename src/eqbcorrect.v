@@ -12,8 +12,7 @@ Ltac eqb_correct_on__solver :=
   by repeat (try case/andP; match reverse goal with H : @eqb_correct_on _ _ _ |- _ => move=> /=/H{H}-> end).
 Ltac eqb_refl_on__solver :=
   rewrite /eqb_fields_refl_on /=;
-  repeat
-    (reflexivity || apply/andP; split; assumption).
+  by repeat (reflexivity || apply/andP; split; assumption).
 
 Elpi Db eqcorrect.db lp:{{
 
