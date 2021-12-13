@@ -69,7 +69,7 @@ About t_induction.
 
 Elpi eqbcorrect t.
 Elpi eqbP t.
-  
+ (* 
 rec (t -> P)
 IH : list t -> list_is_list P
 bool -> bool_is_bool
@@ -78,7 +78,7 @@ x : T
 rec : P x
 
 IH -> (list_is_list P -> list_is_list Q)
-
+*)
 
 (*
 
