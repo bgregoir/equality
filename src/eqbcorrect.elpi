@@ -9,6 +9,9 @@ main I Prefix [CL] :- std.do! [
   coq.say {gettimeofday} "0",
 
   std.map2 KTs Ks (add-decl-correct Prefix N) Lt-correct,
+
+  coq.say {gettimeofday} "0.5",
+
   std.map2 KTs Ks (add-decl-refl Prefix N) Lt-refl,
 
   coq.say {gettimeofday} "1",
@@ -62,12 +65,12 @@ add-decl-correct Prefix N KT K R /*(global (const P))*/ :- std.do![
 % forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..
 % T : Type |- T -> list T -> list T ---> 
 pred do-params-correct i:int, i:term, i:term, o:term.
+do-params-correct 0 T K R :- !, do-args-correct T K R.
 do-params-correct NP (prod N T F) K {{ fun (a : lp:T) (eqA : a -> a -> bool) => lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
   @pi-decl N T a\
   @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
   eqb-for a eqA =>
     do-params-correct NP1 (F a) {{ lp:K lp:a }} (R a eqA).
-do-params-correct 0 T K R :- do-args-correct T K R.
 
 pred do-args-correct i:term, i:term, o:term.
 do-args-correct (prod N T F) K {{ fun (x : lp:T) (Px : eqb_correct_on lp:Cmp x) => lp:(R x Px) }} :- !,
@@ -116,12 +119,12 @@ add-decl-refl Prefix N KT K R /*(global (const P))*/ :- std.do![
 % forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..
 % T : Type |- T -> list T -> list T ---> 
 pred do-params-refl i:int, i:term, i:term, o:term.
+do-params-refl 0 T K R :- !, do-args-refl T K R.
 do-params-refl NP (prod N T F) K {{ fun (a : lp:T) (eqA : a -> a -> bool) => lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
   @pi-decl N T a\
   @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
   eqb-for a eqA =>
     do-params-refl NP1 (F a) {{ lp:K lp:a }} (R a eqA).
-do-params-refl 0 T K R :- do-args-refl T K R.
 
 pred do-args-refl i:term, i:term, o:term.
 do-args-refl (prod N T F) K {{ fun (x : lp:T) (Px : eqb_refl_on lp:Cmp x) => lp:(R x Px) }} :- !,
@@ -130,10 +133,16 @@ do-args-refl (prod N T F) K {{ fun (x : lp:T) (Px : eqb_refl_on lp:Cmp x) => lp:
   @pi-decl `px` {{ eqb_refl_on lp:Cmp lp:x }} px\
      do-args-refl (F x) {{ lp:K lp:x }} (R x px).
 do-args-refl T K {{ lp:B : eqb_refl_on lp:Cmp lp:K }} :- std.do! [
+  coq.safe-dest-app T (global (indt I)) Args,
+  tag-for I TagC,
+  fields-for I Fields_tC FieldsC _ _,
+  coq.mk-app (global (const TagC)) Args Tag,
+  coq.mk-app (global (const Fields_tC)) Args Fields_t,
+  coq.mk-app (global (const FieldsC)) Args Fields,
   eqb-for T Cmp,
-  eqb-fields T Fields,
-  B = {{ @eqb_body_refl _ _ _ _ lp:Fields lp:K _ }},
-  coq.typecheck {{ lp:B : eqb_refl_on lp:Cmp lp:K }} _ _,
+  eqb-fields T EqbFields,
+  B = {{ @eqb_body_refl lp:T lp:Tag lp:Fields_t lp:Fields lp:EqbFields lp:K _ }},
+  std.assert-ok! (coq.typecheck {{ lp:B (*: eqb_refl_on lp:Cmp lp:K*) }} _) "illtyped",
   coq.ltac.collect-goals B [G] _,
   run-solver G "eqb_refl_on__solver",
 ].

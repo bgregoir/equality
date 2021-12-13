@@ -24,6 +24,7 @@ Elpi Db eqcorrect.db lp:{{
 }}.
       
 Elpi Command eqbcorrect.
+Elpi Accumulate Db tag.db.
 Elpi Accumulate Db eqb.db.
 Elpi Accumulate Db fields.db.
 Elpi Accumulate Db eqcorrect.db.
