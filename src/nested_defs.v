@@ -9,13 +9,76 @@ Inductive t :=
   | T1 of option t.
 
 
-#[only(induction,param1_full,param1_trivial)] derive t.
+#[only(induction,param1_functor,param1_trivial)] derive t.
+About t_induction.
 Elpi tag     t.
 Elpi fields  t.
 Elpi eqb     t.
+
+Lemma option_some_correct :
+  forall (A : Type) (eqA : A -> A -> bool),
+    let PA := @eqb_correct_on A eqA in
+    let P := @eqb_correct_on (option A) (@option_eqb A eqA) in
+ forall s1 : option A, option_is_option A PA s1 -> P s1.
+move=> A eqA PA P o.
+apply: option_induction.
+  move=> x Px.
+Admitted.
+
+reali A PA =>
+  reali (list A) P => 
+
+   option (list A)   ----< option_is_option A P
+   option (box A)   ----< option_is_option A (box_is_box A PA)
+
+
+
+Lemma T1_correct :
+    let P := @eqb_correct_on t t_eqb in
+    forall s1 : t, t_is_t s1 -> P s1.
+move=> P s1.
+apply: t_induction.
+  move=> x Px. admit.
+  move=> x Px.
+  have H := @option_some_correct t t_eqb _ Px.
+  rewrite /P.
+  apply: @eqb_body_correct _ _ _ _ t_construct _ _ _ _.
+  apply: t_constructP.
+  rewrite /eqb_fields_correct_on /= -/t_eqb => y H1.
+  by rewrite (H _ H1).
+
+
+About option_induction.
+
+
+
+About option_eqb_correct.
+About t_induction.
+
+   
+   
+
+  (forall x : option t, option_is_option t (eqb_correct_on t_eqb) x ->
+     (eqb_correct_on t_eqb) (T1 x)) ->
+
+  (forall x : option t, option_is_option (option_eqb t t_eqb) x ->
+     (eqb_correct_on t_eqb) (T1 x)
+
+
+
+
 Elpi eqbcorrect t.
 Elpi eqbP t.
   
+rec (t -> P)
+IH : list t -> list_is_list P
+bool -> bool_is_bool
+
+x : T
+rec : P x
+
+IH -> (list_is_list P -> list_is_list Q)
+
 
 (*
 
