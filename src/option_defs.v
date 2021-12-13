@@ -72,12 +72,12 @@ Lemma t_eqb_correct_T1 (o : option t) :
   option_is_option t (eqb_correct_on t_eqb) o -> eqb_correct_on t_eqb (T1 o).
 Proof.
   move=> H.
+  (* This is the key point. If we don't do it here the tactic eqb_correct_on__solver does not work *)
+  have H' := option_eqb_correct_aux _ _ _ H.
   refine 
     (@eqb_body_correct t t_tag t_fields_t t_fields t_construct
       t_constructP (t_eqb_fields t_eqb) (T1 o) (fun x => _)).
-  (* FIXME : eqb_correct_on__solver. *)
-  rewrite /=.
-  by move=> /(option_eqb_correct_aux _ _ _ H) ->.
+  eqb_correct_on__solver.
 Qed.
 
 Lemma t_eqb_correct_aux :
