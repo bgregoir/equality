@@ -21,3 +21,5 @@ src/large_defs.v
 src/tag.v
 src/fields.v
 src/eqb.v
+src/eqbcorrect.v
+src/eqbP.v
