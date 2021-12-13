@@ -1,17 +1,29 @@
-Require Import Eqdep_dec.
-From mathcomp Require Import all_ssreflect.
-Require Import PArith core_defs.
-Require option_defs.
 
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From elpi.apps Require Import derive.
+Require Import core_defs  tag fields eqb eqbcorrect eqbP.
 
-Open Scope positive_scope.
+Require Import option_defs.
 
 Inductive t := 
   | T0 
   | T1 of option t.
+
+
+#[only(induction,param1_full,param1_trivial)] derive t.
+Elpi tag     t.
+Elpi fields  t.
+Elpi eqb     t.
+Elpi eqbcorrect t.
+Elpi eqbP t.
+  
+
+(*
+
+
+
+
+
+
 
 Section Ind.
 
@@ -127,3 +139,4 @@ Qed.
 Lemma eqbP x1 x2 : reflect (x1 = x2) (eqb x1 x2).
 Proof. apply (iffP idP);[ apply eqb_correct | move=> ->; apply eqb_refl]. Qed.
 
+*)

@@ -5,8 +5,14 @@ pred main i:inductive, i:string, o:list prop.
 main I Prefix [CL] :- std.do! [
   % Add error msg if not a inductive ?
   coq.env.indt I _ _ N TI Ks KTs,
+
+  coq.say {gettimeofday} "0",
+
   std.map2 KTs Ks (add-decl-correct Prefix N) Lt-correct,
   std.map2 KTs Ks (add-decl-refl Prefix N) Lt-refl,
+
+  coq.say {gettimeofday} "1",
+
   induction-db I Indu,
   reali (global (indt I)) IR, % param1-db, really
 
@@ -15,10 +21,14 @@ main I Prefix [CL] :- std.do! [
   Name is Prefix ^ "eqb_correct",
   coq.env.add-const Name R Ty @opaque! Correct,
 
+  coq.say {gettimeofday} "2",
+
   add-indu-refl TI Indu IR Lt-refl Rr,
   std.assert-ok! (coq.typecheck Rr Tyr) "fail demande a JC", 
   Namer is Prefix ^ "eqb_refl",
   coq.env.add-const Namer Rr Tyr @opaque! Refl,
+
+  coq.say {gettimeofday} "3",
 
   CL = eqcorrect-for I Correct Refl,
   coq.elpi.accumulate _ "eqcorrect.db" (clause _ _ CL),
@@ -41,11 +51,12 @@ coq.ctx->string (def X _ Ty B) R :- R is {coq.term->string X} ^ " : " ^ {coq.ter
 /************************** correct *********************************************/
 
 pred add-decl-correct i:string, i:int, i:term, i:constructor, o:term.
-add-decl-correct Prefix N KT K (global (const P)) :- std.do![  
+add-decl-correct Prefix N KT K R /*(global (const P))*/ :- std.do![  
   do-params-correct N KT (global (indc K)) R,
   std.assert-ok! (coq.typecheck R Ty) "R casse",
-  Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)},
-  coq.env.add-const Name R Ty @opaque! P,
+  % Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)},
+  % coq.env.add-const Name R Ty @opaque! P,
+  % coq.say {gettimeofday} ".",
 ].
 
 % forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..
@@ -95,11 +106,11 @@ add-indu-correct _T Indu IR LS {{ fun x => lp:(R x) }} :-
   
 /******************************** Refl **************************************************************/
 pred add-decl-refl i:string, i:int, i:term, i:constructor, o:term.
-add-decl-refl Prefix N KT K (global (const P)) :- std.do![  
+add-decl-refl Prefix N KT K R /*(global (const P))*/ :- std.do![  
   do-params-refl N KT (global (indc K)) R,
   std.assert-ok! (coq.typecheck R Ty) "R casse",
-  Name is Prefix ^ "eqb_refl_on_" ^ {coq.gref->id (indc K)},
-  coq.env.add-const Name R Ty @opaque! P,
+  % Name is Prefix ^ "eqb_refl_on_" ^ {coq.gref->id (indc K)},
+  % coq.env.add-const Name R Ty @opaque! P,
 ].
 
 % forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..

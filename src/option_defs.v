@@ -1,100 +1,13 @@
-Require Import Eqdep_dec.
+From elpi.apps Require Import derive.
+Require Import core_defs  tag fields eqb eqbcorrect eqbP.
 
-From mathcomp Require Import all_ssreflect.
-Require Import core_defs  tag fields eqb.
+#[only(induction,param1_full,param1_trivial)] derive option.
+Elpi tag     option.
+Elpi fields  option.
+Elpi eqb     option.
+Elpi eqbcorrect option.
+Elpi eqbP option.
 
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Require Import PArith.
-Open Scope positive_scope.
+Check option_eqbP : eqtype.Equality.type -> eqtype.Equality.type.
 
-Section Ind.
-
-  Context (A : Type) (PA : A -> Prop) (P : option A -> Prop).
-  Context (A_ind : forall a, PA a) (Hnone : P None) (Hsome : forall a, PA a -> P (Some a)).
-
-  Definition option_Ind (o : option A) : P o := 
-    match o with
-    | None => Hnone
-    | Some a => Hsome (A_ind a)
-    end.
-
-End Ind.
-
-Elpi tag option.
-Definition tag {A} := @option_tag A.
-
-Elpi fields option.
-Definition fields_t {A} := @option_fields_t A.
-
-Definition fields {A} := @option_fields A.
-
-Definition construct {A} := @option_construct A.
-
-Definition constructP {A} := @option_constructP A.
-
-Elpi eqb option.
-Print option_eqb_fields.
-
-Definition eqb_fields (t:positive) : fields_t t -> fields_t t -> bool := 
-  match t return fields_t t -> fields_t t -> bool with
-  | 1 => Aeqb
-  | 2 => eq_op
-  | _ => eq_op
-  end.
-
-Definition eqb (x1 x2:option A) := 
-  match x1 with
-  | Some a => eqb_body eqb_fields (t1:=1) a x2
-  | None => eqb_body eqb_fields (t1:=2) tt x2
-  end.
-
-Lemma eqb_correct_on_None : eqb_correct_on eqb None.
-Proof.
-  rewrite /eqb_correct_on /eqb.
-  by apply (@eqb_body_correct _ (option_obj A) eqb_fields None).
-Qed.
-
-Lemma eqb_correct_on_Some a : 
-   eqb_correct_on Aeqb a -> 
-   eqb_correct_on eqb (Some a).
-Proof.
-  rewrite /eqb_correct_on /eqb => ha.
-  apply (@eqb_body_correct _ (option_obj A) eqb_fields (Some a)).
-  by move=> a2 /ha ->.
-Qed.
-
-Lemma eqb_refl_on_None : eqb_refl_on eqb None.
-Proof. done. Qed.
-
-Lemma eqb_refl_on_Some a :
-  eqb_refl_on Aeqb a -> 
-  eqb_refl_on eqb (Some a).
-Proof. apply (@eqb_body_refl _ (option_obj A) eqb_fields (Some a)). Qed.
-
-End Section.
-
-Section EqType.
-
-Context (A:eqType).
-
-Lemma eqb_correct (x:option A) : eqb_correct_on (eqb eq_op) x.
-Proof.
-  case: x => [ a | ].
-  + by apply/eqb_correct_on_Some => x'; apply /eqP.
-  apply eqb_correct_on_None.
-Qed.
-
-Lemma eqb_refl (x:option A) : eqb_refl_on (eqb eq_op) x.
-Proof.
-  case: x => [ a | ].
-  + by apply/eqb_refl_on_Some/eqxx.
-  apply eqb_refl_on_None.
-Qed.
-
-Lemma eqbP (x1 x2 : option A) : reflect (x1 = x2) (eqb eq_op x1 x2).
-Proof. apply (iffP idP);[ apply eqb_correct | move=> ->; apply eqb_refl]. Qed.
-
-End EqType.
 
