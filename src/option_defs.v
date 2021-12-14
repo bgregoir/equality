@@ -8,7 +8,7 @@ Elpi eqb     option.
 Elpi eqbcorrect option.
 Elpi eqbP option.
 
-Print option_induction.
+
 
 Lemma option_eqb_correct_Some (A:Type) (eqA: A -> A -> bool) (a:A) : 
   eqb_correct_on eqA a -> eqb_correct_on (option_eqb A eqA) (Some a).
@@ -57,6 +57,7 @@ Inductive t :=
 Elpi tag     t.
 Elpi fields  t.
 Elpi eqb     t.
+Elpi eqbcorrect t.
 
 Check t_induction.
 

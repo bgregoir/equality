@@ -8,6 +8,8 @@ main I Prefix [CL] :- std.do! [
 
   coq.say {gettimeofday} "0",
 
+  std.map2 KTs Ks (add-decl-correct-ty Prefix N) Lt-correct-ty,
+
   std.map2 KTs Ks (add-decl-correct Prefix N) Lt-correct,
 
   coq.say {gettimeofday} "0.5",
@@ -52,6 +54,46 @@ coq.ctx->string (decl X _ Ty) R :- R is {coq.term->string X} ^ " : " ^ {coq.term
 coq.ctx->string (def X _ Ty B) R :- R is {coq.term->string X} ^ " : " ^ {coq.term->string Ty} ^ " := " ^ {coq.term->string B}.
 
 /************************** correct *********************************************/
+
+/* Build the type */
+pred add-decl-correct-ty i:string, i:int, i:term, i:constructor, o:term.
+add-decl-correct-ty Prefix N KT K R /*(global (const P))*/ :- std.do![  
+  do-params-correct-ty N KT (global (indc K)) R,
+  coq.say "R=" R,
+  std.assert-ok! (coq.typecheck R Ty) "R casse",
+  Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)} ^ "_t",
+  coq.env.add-const Name R Ty @opaque! P,
+  % coq.say {gettimeofday} ".",
+].
+
+pred do-params-correct-ty i:int, i:term, i:term, o:term.
+do-params-correct-ty 0 T K R :- !, do-args-correct-ty T K R.
+do-params-correct-ty NP (prod N T F) K {{ forall (a : lp:T) (eqA : a -> a -> bool), lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  eqb-for a eqA =>
+  reali a {{ @eqb_correct_on lp:a lp:eqA }} =>
+    do-params-correct-ty NP1 (F a) {{ lp:K lp:a }} (R a eqA).
+
+pred do-args-correct-ty i:term, i:term, o:term.
+do-args-correct-ty (prod N T F) K {{ forall (x : lp:T) (Px : lp:EqbOn x), lp:(R x Px) }} :- !,
+  reali T EqbOn, 
+  @pi-decl N T x\
+  @pi-decl `px` {{ lp:EqbOn lp:x }} px\
+     do-args-correct-ty (F x) {{ lp:K lp:x }} (R x px).
+
+do-args-correct-ty T K {{ eqb_correct_on lp:Cmp lp:K }} :- std.do! [
+  eqb-for T Cmp,
+%  coq.safe-dest-app T (global (indt I)) Args,
+%  fields-for I _ _ _ ConstructPC,
+%  coq.mk-app (global (const ConstructPC)) Args ConstructP,
+%  eqb-fields T Fields,
+%  B = {{ @eqb_body_correct _ _ _ _ _ lp:ConstructP lp:Fields lp:K (fun f => _) }},
+%  coq.typecheck {{ lp:B : eqb_correct_on lp:Cmp lp:K }} _ _,
+%  coq.ltac.collect-goals B [G] _,
+%  run-solver G "eqb_correct_on__solver",
+%
+].
 
 pred add-decl-correct i:string, i:int, i:term, i:constructor, o:term.
 add-decl-correct Prefix N KT K R /*(global (const P))*/ :- std.do![  
