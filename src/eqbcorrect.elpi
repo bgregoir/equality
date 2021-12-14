@@ -8,7 +8,7 @@ main I Prefix [CL] :- std.do! [
 
   coq.say {gettimeofday} "0",
 
-  std.map2 KTs Ks (add-decl-correct-ty Prefix N) Lt-correct-ty,
+  std.map2 KTs Ks (add-decl-correct-ty Prefix N I) Lt-correct-ty,
 
   std.map2 KTs Ks (add-decl-correct Prefix N) Lt-correct,
 
@@ -56,9 +56,9 @@ coq.ctx->string (def X _ Ty B) R :- R is {coq.term->string X} ^ " : " ^ {coq.ter
 /************************** correct *********************************************/
 
 /* Build the type */
-pred add-decl-correct-ty i:string, i:int, i:term, i:constructor, o:term.
-add-decl-correct-ty Prefix N KT K R /*(global (const P))*/ :- std.do![  
-  do-params-correct-ty N KT (global (indc K)) R,
+pred add-decl-correct-ty i:string, i:int, i:inductive, i:term, i:constructor, o:term.
+add-decl-correct-ty Prefix N I KT K R /*(global (const P))*/ :- std.do![  
+  do-params-correct-ty N KT (global (indt I)) (global (indc K)) R,
   coq.say "R=" R,
   std.assert-ok! (coq.typecheck R Ty) "R casse",
   Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)} ^ "_t",
@@ -66,14 +66,17 @@ add-decl-correct-ty Prefix N KT K R /*(global (const P))*/ :- std.do![
   % coq.say {gettimeofday} ".",
 ].
 
-pred do-params-correct-ty i:int, i:term, i:term, o:term.
-do-params-correct-ty 0 T K R :- !, do-args-correct-ty T K R.
-do-params-correct-ty NP (prod N T F) K {{ forall (a : lp:T) (eqA : a -> a -> bool), lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
+pred do-params-correct-ty i:int, i:term, i:term, i:term, o:term.
+do-params-correct-ty 0 T I K R :- !, 
+  eqb-for I Cmp,
+  reali I {{ eqb_correct_on lp:I lp:Cmp }} =>           
+  do-args-correct-ty T K R.
+do-params-correct-ty NP (prod N T F) I K {{ forall (a : lp:T) (eqA : a -> a -> bool), lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
   @pi-decl N T a\
   @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
   eqb-for a eqA =>
   reali a {{ @eqb_correct_on lp:a lp:eqA }} =>
-    do-params-correct-ty NP1 (F a) {{ lp:K lp:a }} (R a eqA).
+    do-params-correct-ty NP1 (F a) {{ lp:I lp:a }} {{ lp:K lp:a }} (R a eqA).
 
 pred do-args-correct-ty i:term, i:term, o:term.
 do-args-correct-ty (prod N T F) K {{ forall (x : lp:T) (Px : lp:EqbOn x), lp:(R x Px) }} :- !,
