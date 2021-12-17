@@ -32,19 +32,9 @@ Inductive t :=
   | T1 of option (list (option t)).
 
 
+
 Elpi Accumulate eqcorrect.db lp:{{
 
-  what-for What Rec (app [global GR|L]) R :- std.spy-do! [
-    What GR Aux,
-    functor-lemma-for GR Funct,
-    std.map L Rec Recs,
-    apply-functor Funct Recs TOTO,
-    R = {{ fun x H => lp:Aux _ _ x (lp:TOTO x H) }},
-  ].
-
-   pred apply-functor i:term, i:list term, o:term.
-   apply-functor X [] X.
-   apply-functor X [R|RS] TOTO :- apply-functor {{ lp:X _ _ _ lp:R }} RS TOTO.
 
    % correct-lemma-for {{:gref list }} {{ list_eqb_correct_aux }}.
    % correct-lemma-for {{:gref option }} {{ option_eqb_correct_aux }}.
@@ -84,7 +74,10 @@ Elpi tag     t.
 Elpi fields  t.
 Elpi eqb     t.
 Elpi eqbcorrect t.
+Elpi eqbP t.
 
-About t_eqb_correct.
-About t_eqb_refl.
+Import eqtype.
+
+Check (forall x : t, x == x).
+
 

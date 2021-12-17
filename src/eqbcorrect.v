@@ -21,11 +21,6 @@ Elpi Db eqcorrect.db lp:{{
     o:constant, % correct
     o:constant. % reflexive
     
-    pred what-for i:(gref -> term -> prop), i:(term -> term -> prop), i:term, o:term.
-    pred eqb-correct-aux-for i:term, o:term.
-    eqb-correct-aux-for T R :-
-      what-for correct-lemma-for eqb-correct-aux-for T R.
-
     pred eqb-refl-aux-for i:term, o:term.
 
   /* JC HERE 

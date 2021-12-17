@@ -50,6 +50,25 @@ main I Prefix CLs :- std.do! [
 
 ].
 
+pred what-for i:(gref -> term -> prop), i:(term -> term -> prop), i:term, o:term.
+pred eqb-correct-aux-for i:term, o:term.
+eqb-correct-aux-for T R :-
+  what-for correct-lemma-for eqb-correct-aux-for T R.
+
+what-for What Rec (app [global GR|L]) R :- std.spy-do! [
+  What GR Aux,
+  functor-lemma-for GR Funct,
+  std.map L Rec Recs,
+  apply-functor Funct Recs TOTO,
+  R = {{ fun x H => lp:Aux _ _ x (lp:TOTO x H) }},
+].
+
+  pred apply-functor i:term, i:list term, o:term.
+  apply-functor X [] X.
+  apply-functor X [R|RS] TOTO :- apply-functor {{ lp:X _ _ _ lp:R }} RS TOTO.
+
+
+
 pred run-solver i:sealed-goal, i:string.
 run-solver G Name :-
   if (coq.ltac.open (coq.ltac.call Name []) G []) true
