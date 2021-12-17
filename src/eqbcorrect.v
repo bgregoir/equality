@@ -20,6 +20,14 @@ Elpi Db eqcorrect.db lp:{{
     o:inductive,
     o:constant, % correct
     o:constant. % reflexive
+    
+    pred what-for i:(gref -> term -> prop), i:(term -> term -> prop), i:term, o:term.
+    pred eqb-correct-aux-for i:term, o:term.
+    eqb-correct-aux-for T R :-
+      what-for correct-lemma-for eqb-correct-aux-for T R.
+
+    pred eqb-refl-aux-for i:term, o:term.
+
   /* JC HERE 
 
   pred eqb-correct-aux-for o:term, o:term.
@@ -40,7 +48,14 @@ Elpi Db eqcorrect.db lp:{{
     eqb-correct-aux-for P X.
 
     option_is_option (list A) (list_is_list A (eqb_correct_on A FA))
-*/
+
+  :name "eqb-correct-aux-for:default"
+  eqb-correct-aux-for T {{ fun (x : lp:T) H => H }}.
+  */
+  :name "eqb-refl-aux-for:default"
+  eqb-refl-aux-for T {{ fun (x : lp:T) H => H }}.
+
+
 
 }}.
       
@@ -51,6 +66,7 @@ Elpi Accumulate Db fields.db.
 Elpi Accumulate Db eqcorrect.db.
 Elpi Accumulate Db derive.induction.db.
 Elpi Accumulate Db derive.param1.inhab.db.
+(*Elpi Accumulate Db derive.param1.functor.db. bad db shape *)
 Elpi Accumulate File "src/elpi-ltac.elpi".
 Elpi Accumulate File "src/eqbcorrect.elpi".
 Elpi Accumulate File "src/paramX-lib.elpi".
