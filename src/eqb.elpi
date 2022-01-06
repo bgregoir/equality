@@ -1,0 +1,128 @@
+
+pred eqb.main i:inductive, i:string, o:list prop.
+eqb.main I Prefix CL :- std.do! [
+  coq.env.indt I _ _ N Arity _ _,
+  Ind = global (indt I),
+
+  % the non recursive code comparing all fields according to their types
+  eqbf.do-params N Arity Ind R,
+  std.assert-ok! (coq.typecheck R Rty) "eqbf generates illtyped term",
+  Name is Prefix ^ "eqb_fields",
+  coq.env.add-const Name R Rty ff C,
+  EQBF = global (const C),
+  
+  % the fix
+  eqb.do-params N Arity Ind EQBF R1,
+  std.assert-ok! (coq.typecheck R1 R1ty) "eqb generates illtyped term",
+  Name1 is Prefix ^ "eqb",
+  coq.env.add-const Name1 R1 R1ty ff C1,
+  EQB = global (const C1),
+
+  % populate dbs
+  eqbf.do-clause N Arity Ind EQBF [] CL1,
+  eqb.do-clause N Arity Ind EQB [] CL2,
+  CL = [CL1,CL2],
+  std.forall CL (x\ coq.elpi.accumulate _ "eqb.db" (clause _ _ x)),
+].
+
+namespace eqb {
+
+pred do-params i:int, i:term, i:term, i:term, o:term.
+do-params N {{ forall x : lp:T, lp:(F x) }} I EF {{ fun (x : lp:T) (eqx : x -> x -> bool) => lp:(R x eqx) }}  :- N > 0, !, M is N - 1,
+  @pi-decl `x` T x\
+  @pi-decl `eqx` {{ lp:x -> lp:x -> bool }} eqx\
+    do-params M (F x) {coq.mk-app I [x]} {coq.mk-app EF [x,eqx]} (R x eqx).
+do-params 0 _ I EF {{ fix rec (x1 x2 : lp:I) {struct x1} : bool := lp:(R rec x1 x2) }} :-
+  @pi-decl `rec` {{ lp:I -> lp:I -> bool }} rec\
+  @pi-decl `x1` I x1\
+  @pi-decl `x2` I x2\
+    do-match x1 I x2 {coq.mk-app EF [rec]} (R rec x1 x2).
+
+pred do-match i:term, i:term, i:term, i:term, o:term.
+do-match X1 I X2 F R :-
+  coq.build-match X1 I
+    (_\_\_\r\ r = {{ bool }})
+    (do-branch X2 F)
+    R.
+
+pred do-branch i:term, i:term, i:term, i:term, i:list term, i:A, o:term.
+do-branch X2 F K KTY Vars _ {{ @eqb_body _ _ _ lp:FLDP lp:F lp:TAG lp:X lp:X2 }} :- std.do! [
+  coq.safe-dest-app KTY (global (indt I)) Params,
+  fields-for I _ FLD _ _,
+  tag-for I T,
+  coq.mk-app (global (const FLD)) Params FLDP,
+  coq.mk-app (global (const T)) Params TA,
+  coq.mk-app TA [{coq.mk-app K Vars}] TAG,
+  to-tuple Vars X,
+].
+
+pred to-tuple i:list term, o:term.
+to-tuple [] {{ tt }}.
+to-tuple [X] X.
+to-tuple [X|XS] {{ ( lp:X, lp:R ) }} :- to-tuple XS R.
+
+% example: eqb-for {{ list lp:A }} {{ @list_eqb lp:A lp:F }} :- eqb-for A F.
+pred do-clause i:int, i:term, i:term, i:term, i:list prop, o:prop.
+do-clause N {{ forall p, lp:(A p) }} I F Todo (pi a ea\ C a ea) :- N > 0, !, M is N - 1,
+  pi a ea\
+    do-clause M (A a) {coq.mk-app I [a]} {coq.mk-app F [a,ea]} [eqb-for a ea|Todo] (C a ea).
+do-clause 0 _ I F Todo (eqb-for I F :- Todo).
+
+}
+
+% -----------------------------------------------------------------------------
+
+namespace eqbf {
+
+pred do-params i:int, i:term, i:term, o:term.
+do-params J {{ forall p : lp:T, lp:(F p) }} I {{ fun (p : lp:T) (eqp : p -> p -> bool) => lp:(R p eqp) }} :- J > 0, !, K is J - 1,
+  @pi-decl `P` T p\
+  @pi-decl `eqP` {{ lp:p -> lp:p -> bool }} eqP\
+    eqb-for p eqP =>
+    do-params K (F p) {coq.mk-app I [p]} (R p eqP).
+do-params 0 _ Ind {{ fun (rec : lp:Ind -> lp:Ind -> bool) (x : positive) => lp:(R rec x) }} :- std.do! [
+  coq.safe-dest-app Ind (global (indt I)) Params,
+  coq.env.indt I _ _ _ _ _ KT,
+  std.map KT (coq.subst-prod Params) L,
+  fields-for I F_t _ _ _,
+  coq.mk-app (global (const F_t)) Params Fields_t,
+  (@pi-decl `rec` {{ lp:Ind -> lp:Ind -> bool }} rec\
+   @pi-decl `x` {{ positive }} x\
+   eqb-for Ind rec =>
+     fields.splay-over-positive x L {{ fun x => lp:Fields_t x -> lp:Fields_t x -> bool }}
+       {{ fun _ _ => true }}
+       do-fields
+       (R rec x)),
+].  
+pred do-fields i:term, o:term.
+do-fields Ty {{ fun a b => lp:(R a b) }} :-
+  @pi-decl `x` _ x\
+  @pi-decl `y` _ y\
+  do-fields.aux Ty x y (R x y).
+
+pred do-fields.aux i:term, i:term, i:term, o:term.
+do-fields.aux {{ forall p : lp:T, lp:(F p) }} P1 P2 {{ lp:X && lp:R }} :- F = (x\prod _ _ _), !, % not the last one
+  eqb-for T EQB,
+  X = {{ lp:EQB (fst lp:P1) (fst lp:P2) }},
+  (pi x\ if (occurs x (F x)) (coq.error "dependent type not supported yet") true),
+  @pi-decl `p` T n\
+    do-fields.aux (F n) {{ snd lp:P1 }} {{ snd lp:P2 }} R.
+do-fields.aux {{ lp:T -> _ }} P1 P2 X :-
+  eqb-for T EQB,
+  coq.mk-app EQB [P1, P2] X.
+do-fields.aux _ _ _ {{ true }}.
+
+% example:
+%   eqb-fields {{ list lp:A }} {{ @list_eqb_fields lp:A lp:EA lp:ELA }} :-
+%      eqb-for A EA, eqb-for {{ list lp:A }} ELA.
+pred do-clause i:int, i:term, i:term, i:term, i:list prop, o:prop.
+do-clause N (prod _ _ A) I F Todo (pi a ea\ C a ea) :- N > 0, !, M is N - 1,
+  pi a ea\
+    do-clause M (A a) {coq.mk-app I [a]} {coq.mk-app F [a,ea]} [eqb-for a ea|Todo] (C a ea).
+do-clause 0 _ I F Todo (pi ela\ eqb-fields I (F1 ela) :- [C ela|Todo]) :-
+  pi ela\
+    (coq.mk-app F [ela] (F1 ela),
+     C ela = eqb-for I ela).
+
+
+}

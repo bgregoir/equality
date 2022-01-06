@@ -1,0 +1,155 @@
+namespace fields {
+
+pred fields_t. % chose between fields_t and construct
+pred self o:term.
+
+pred main i:inductive, i:string, o:list prop.
+main I Prefix CL :- std.do! [
+  
+  std.assert! (tag-for I Tag) "no tag for this inductive, run that derivation first",
+
+  coq.bind-ind-parameters I (_\ params\ _\ kty->tuple I params) Body_t,
+  std.assert-ok! (coq.typecheck Body_t Ty_t) "fields generates illtyped fields_t",
+  Name_t is Prefix ^ "fields_t",
+  coq.env.add-const Name_t Body_t Ty_t ff Fields_t, 
+
+  coq.env.indt I _ _ _ Arity _ _,
+  coq.bind-ind-arity (global (indt I)) Arity (repack-as-tuple Fields_t Tag) Body,
+  std.assert-ok! (coq.typecheck Body Ty) "fields generates illtyped fields",
+  Name is Prefix ^ "fields",
+  coq.env.add-const Name Body Ty ff Fields, 
+
+  coq.bind-ind-parameters I (_\ params\ _\ fun-tuple->kapp-proj Fields_t I params) Body_c,
+  std.assert-ok! (coq.typecheck Body_c Ty_c) "fields generates illtyped construct",
+  Name_c is Prefix ^ "construct",
+  coq.env.add-const Name_c Body_c Ty_c ff Construct, 
+
+  coq.bind-ind-arity (global (indt I)) Arity (case-refl Fields Construct) Body_P,
+  std.assert-ok! (coq.typecheck Body_P Ty_P) "fields generates illtyped constructP",
+  Name_P is Prefix ^ "constructP",
+  coq.env.add-const Name_P Body_P Ty_P @opaque! ConstructP, 
+
+  CL = [fields-for I Fields_t Fields Construct ConstructP],
+  std.forall CL (x\ coq.elpi.accumulate _ "fields.db" (clause _ _ x)),
+
+].
+
+% match x return construct (fields x) = Some x with _ => erefl
+pred case-refl i:constant, i:constant, i:term, i:list term, i:list term, o:term.
+case-refl Fields Construct _ ParamsX Tys R :-
+  std.appendR Params [X] ParamsX,
+  coq.mk-app (global (const Fields)) Params FP,
+  coq.mk-app (global (const Construct)) Params CP,
+  coq.build-match X {std.last Tys}
+    (case-refl-rty FP CP)
+    case-refl-branch
+    R.
+
+pred case-refl-rty i:term, i:term, i:term, i:list term,i:list term, o:term.
+case-refl-rty Fields Construct _ Vs _ {{ lp:Construct _ (lp:Fields lp:X) = Some lp:X }} :-
+  std.last Vs X.
+
+pred case-refl-branch i:term, i:term, i:list term,i:list term, o:term.
+case-refl-branch _ _ _ _ {{ refl_equal }}.
+
+% match p with ... n => TyKn.1 * TyKn.2 ...
+pred kty->tuple i:inductive, i:list term, o:term.
+kty->tuple I Params {{ fun p : positive => lp:(R p) }} :-
+  coq.env.indt I _ _ _ _ _ KT,
+  std.map KT (coq.subst-prod Params) L,
+  @pi-decl `p` {{ positive }} p\
+    splay-over-positive p L {{ fun _ => Type }}
+      {{ unit }}
+      prod->tuple
+      (R p).
+
+% match p with ... n => fun x => Kn x.1 x.2 ...
+pred fun-tuple->kapp-proj i:constant, i:inductive, i:list term, o:term.
+fun-tuple->kapp-proj C_t I Params {{ fun p : positive => lp:(R p) }} :-
+  coq.env.indt I _ _ _ _ KS KT,
+  coq.mk-app (global (const C_t)) Params Fields_t,
+  coq.mk-app (global (indt I)) Params Ind,
+  std.map KS (c\coq.mk-app (global (indc c)) Params) L1,
+  std.map KT (coq.subst-prod Params) L2,
+  std.zip L1 L2 L,
+  @pi-decl `p` {{ positive }} p\
+    splay-over-positive p L {{ fun x => lp:Fields_t x -> option lp:Ind }}
+      {{ fun _ => None }}
+      fun-tuple->kapp
+      (R p).
+
+pred fun-tuple->kapp i:(pair term term), o:term.
+fun-tuple->kapp (pr K Ty) {{ fun p => lp:(R p) }} :-
+  @pi-decl `p` _ p\ tuple->kapp Ty K p (R p).
+
+pred tuple->kapp i:term, i:term, i:term, o:term.
+tuple->kapp (prod N T F) K P R :- F = (x\prod _ _ _), !, % not the last one
+  @pi-decl N T x\ tuple->kapp (F x) {coq.mk-app K [{{ fst lp:P }}]} {{ snd lp:P }} R.
+tuple->kapp (prod N T F) K P R :-
+  @pi-decl N T x\ tuple->kapp (F x) {coq.mk-app K [P]} {{ snd lp:P }} R.
+tuple->kapp _ K _ {{ Some lp:K }}.
+
+pred splay-over-positive i:term, i:list A, i:term,  i:term, i:(A -> term -> prop), o:term.
+splay-over-positive X L DoRty Def DoBranch R :-
+  splay-over-positive.aux X (x\x) L DoRty DoBranch Def R.
+pred splay-over-positive.aux i:term, i:(term -> term), i:list A, i:term, i:(A -> term -> prop), i:term, o:term.
+splay-over-positive.aux _ _ [] _ _ Def Def.
+splay-over-positive.aux X XCtx KL DoRty DoBranch Def R :-
+  coq.build-match X {{ positive }} (do-rty XCtx DoRty) (do-branch XCtx DoRty DoBranch Def KL) R.
+
+pred do-rty i:(term -> term), i:term, i:term, i:list term,i:list term, o:term.
+do-rty Ctx DoRty _ Vs _ R :-  P = Ctx {std.last Vs}, whd1 {{ lp:DoRty lp:P }} R.
+
+pred list-bitmask i:list A, o:list A, o:list A.
+list-bitmask [] [] [].
+list-bitmask [X] [X] [].
+list-bitmask [X,Y|L] [X|A] [Y|B] :- list-bitmask L A B.
+
+pred do-branch i:(term -> term), i:term, i:(A -> term -> prop), i:term, i:list A, i:term, i:term, i:list term, i:list term, o:term.
+do-branch PCtx DoRty DoBranch Def [_|KS] {{ xO }} _ [P] _ R :-
+  list-bitmask KS KODD _,
+  splay-over-positive.aux P (x\ PCtx {{ xO lp:x }}) KODD DoRty DoBranch Def R.
+do-branch PCtx DoRty DoBranch Def [_|KS] {{ xI }} _ [P] _ R :-
+  list-bitmask KS _ KEVEN,
+  splay-over-positive.aux P (x\ PCtx {{ xI lp:x }}) KEVEN DoRty DoBranch Def R.
+do-branch _ _ DoBranch _ [X|_] {{ xH }} _ _ _ R :- DoBranch X R.
+
+pred prod->tuple i:term, o:term.
+prod->tuple (prod N Ty F) {{ (lp:Ty * lp:X)%type }} :- (F = x\prod _ _ _), !, % not the last one
+  @pi-decl N Ty x\ prod->tuple (F x) X.
+prod->tuple (prod _ Ty _) Ty.
+prod->tuple _ {{ unit }}. % other branches
+
+pred repack-as-tuple i:constant, i:constant, i:term, i:list term, i:list term, o:term.
+repack-as-tuple C_t Tag _ Vars Tys R :-
+  std.appendR Params [X] Vars,
+  std.last Tys XTy,
+  coq.mk-app (global (const C_t)) Params C_tp,
+  coq.mk-app (global (const Tag)) Params Tagp,
+  coq.build-match X XTy (do-rty_t C_tp Tagp) args->tuple R.
+
+pred do-rty_t i:term, i:term, i:term, i:list term,i:list term, o:term.
+do-rty_t C_t Tag _ Vars _ {{ lp:C_t (lp:Tag lp:X) }} :- std.last Vars X.
+
+pred args->tuple i:term, i:term, i:list term, i:list term, o:term.
+args->tuple _ _ [] _ {{ tt }}.
+args->tuple _ _ [X] _ X.
+args->tuple A B [X|XS] C {{ ( lp:X , lp:R ) }} :-
+  args->tuple A B XS C R.
+
+% TODO: move in coq-lib.elpi
+pred coq.bind-ind-parameters i:inductive, i:(term -> list term -> list term -> term -> prop), o:term.
+coq.bind-ind-parameters I K O :-
+  coq.env.indt I _ _ N A _ _,
+  coq.bind-ind-parameters.aux N A [] [] K O.
+coq.bind-ind-parameters.aux 0 Ty Vars Tys K O :- !, K Ty {std.rev Vars} {std.rev Tys} O.
+coq.bind-ind-parameters.aux I (prod N T F) Vs Ts K (fun N T G) :- I > 0, !, J is I - 1,
+  @pi-decl N T x\
+    coq.bind-ind-parameters.aux J (F x) [x|Vs] [T|Ts] K (G x).
+coq.bind-ind-parameters.aux I (let N T B F) Vs Ts K (fun N T G) :- I > 0, !, J is I - 1,
+  @pi-def N T B x\
+    coq.bind-ind-parameters.aux J (F x) [x|Vs] [T|Ts] K (G x).
+coq.bind-ind-parameters.aux I T Vs Ts K O :- I > 0, whd1 T T', !,
+  coq.bind-ind-parameters.aux I T' Vs Ts K O.
+
+}

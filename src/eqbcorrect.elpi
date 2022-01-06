@@ -1,0 +1,278 @@
+
+namespace eqbcorrect {
+
+pred main i:inductive, i:string, o:list prop.
+main I Prefix CLs :- std.do! [
+  % Add error msg if not a inductive ?
+  coq.env.indt I _ _ N TI Ks KTs,
+
+  coq.say {gettimeofday} "0",
+
+  % std.map2 KTs Ks (add-decl-correct-ty Prefix N I) Lt-correct-ty,
+
+  coq.say {gettimeofday} "0.1",
+
+  std.map2 KTs Ks (add-decl-correct Prefix N (global (indt I))) Lt-correct,
+
+  coq.say {gettimeofday} "0.5",
+
+  std.map2 KTs Ks (add-decl-refl Prefix N (global (indt I))) Lt-refl,
+
+  coq.say {gettimeofday} "1",
+
+  induction-db I Indu,
+  reali (global (indt I)) IR, % param1-db, really
+
+  add-indu-correct TI Indu IR Lt-correct R,
+  std.assert-ok! (coq.typecheck R Ty) "fail demande a JC", 
+  Name is Prefix ^ "eqb_correct",
+  coq.env.add-const Name R Ty @opaque! Correct,
+
+  add-indu-correct-aux TI Indu IR Lt-correct Rx,
+  std.assert-ok! (coq.typecheck Rx Tyx) "fail demande a JC", 
+  Namex is Prefix ^ "eqb_correct_aux",
+  coq.env.add-const Namex Rx Tyx @opaque! Correctx,
+
+  coq.say {gettimeofday} "2",
+
+  add-indu-refl TI Indu IR Lt-refl Rr,
+  std.assert-ok! (coq.typecheck Rr Tyr) "fail demande a JC", 
+  Namer is Prefix ^ "eqb_refl",
+  coq.env.add-const Namer Rr Tyr @opaque! Refl,
+
+  coq.say {gettimeofday} "3",
+
+  CLs = [
+    eqcorrect-for I Correct Refl,
+    correct-lemma-for (indt I) (global (const Correctx)),
+  ],
+  std.forall CLs (x\ coq.elpi.accumulate _ "eqcorrect.db" (clause _ _ x)),
+
+].
+
+pred what-for i:(gref -> term -> prop), i:(term -> term -> prop), i:term, o:term.
+pred eqb-correct-aux-for i:term, o:term.
+eqb-correct-aux-for T R :-
+  what-for correct-lemma-for eqb-correct-aux-for T R.
+
+what-for What Rec (app [global GR|L]) R :- std.spy-do! [
+  What GR Aux,
+  functor-lemma-for GR Funct,
+  std.map L Rec Recs,
+  apply-functor Funct Recs TOTO,
+  R = {{ fun x H => lp:Aux _ _ x (lp:TOTO x H) }},
+].
+
+  pred apply-functor i:term, i:list term, o:term.
+  apply-functor X [] X.
+  apply-functor X [R|RS] TOTO :- apply-functor {{ lp:X _ _ _ lp:R }} RS TOTO.
+
+
+
+pred run-solver i:sealed-goal, i:string.
+run-solver G Name :-
+  if (coq.ltac.open (coq.ltac.call Name []) G []) true
+     (coq.sealed-goal->string G SG,
+      std.fatal-error {calc ( "solver " ^ Name ^ " fails on goal:\n" ^ SG )}).
+
+coq.sealed-goal->string (nabla G) R :- pi x\  coq.sealed-goal->string (G x) R.
+coq.sealed-goal->string (seal (goal Ctx _ Ty _ _)) R :-
+  Ctx => (std.map {std.rev Ctx} coq.ctx->string L, coq.term->string Ty G, R is {std.string.concat "\n" L} ^ "\n===============\n" ^ G).
+
+coq.ctx->string (decl X _ Ty) R :- R is {coq.term->string X} ^ " : " ^ {coq.term->string Ty}.
+coq.ctx->string (def X _ Ty B) R :- R is {coq.term->string X} ^ " : " ^ {coq.term->string Ty} ^ " := " ^ {coq.term->string B}.
+
+/************************** correct *********************************************/
+
+/* Build the type 
+
+pred add-decl-correct-ty i:string, i:int, i:inductive, i:term, i:constructor, o:term.
+add-decl-correct-ty Prefix N I KT K R /*(global (const P))*/ :- std.do![  
+  do-params-correct-ty N KT (global (indt I)) (global (indc K)) R,
+  coq.term->string R RS,
+  coq.say "R=" RS,
+  std.assert-ok! (coq.typecheck R Ty) "R casse",
+  Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)} ^ "_t",
+  coq.env.add-const Name R Ty @opaque! P,
+  % coq.say {gettimeofday} ".",
+].
+
+pred do-params-correct-ty i:int, i:term, i:term, i:term, o:term.
+do-params-correct-ty 0 T I K R :- !, 
+  eqb-for I Cmp,
+  reali I {{ @eqb_correct_on lp:I lp:Cmp }} =>           
+  do-args-correct-ty T K R.
+do-params-correct-ty NP (prod N T F) I K {{ forall (a : lp:T) (eqA : a -> a -> bool), lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  eqb-for a eqA =>
+  reali a {{ @eqb_correct_on lp:a lp:eqA }} =>
+    do-params-correct-ty NP1 (F a) {{ lp:I lp:a }} {{ lp:K lp:a }} (R a eqA).
+
+pred do-args-correct-ty i:term, i:term, o:term.
+do-args-correct-ty (prod N T F) K {{ forall (x : lp:T) (Px : lp:EqbOn x), lp:(R x Px) }} :- !,
+  reali T EqbOn, 
+  @pi-decl N T x\
+  @pi-decl `px` {{ lp:EqbOn lp:x }} px\
+     do-args-correct-ty (F x) {{ lp:K lp:x }} (R x px).
+
+do-args-correct-ty T K {{ eqb_correct_on lp:Cmp lp:K }} :- std.do! [
+  eqb-for T Cmp,
+%  coq.safe-dest-app T (global (indt I)) Args,
+%  fields-for I _ _ _ ConstructPC,
+%  coq.mk-app (global (const ConstructPC)) Args ConstructP,
+%  eqb-fields T Fields,
+%  B = {{ @eqb_body_correct _ _ _ _ _ lp:ConstructP lp:Fields lp:K (fun f => _) }},
+%  coq.typecheck {{ lp:B : eqb_correct_on lp:Cmp lp:K }} _ _,
+%  coq.ltac.collect-goals B [G] _,
+%  run-solver G "eqb_correct_on__solver",
+%
+].
+
+*/
+
+pred add-decl-correct i:string, i:int, i:term, i:term, i:constructor, o:term.
+add-decl-correct Prefix N I KT K R /*(global (const P))*/ :- std.do![  
+  do-params-correct N I KT (global (indc K)) R,
+  std.assert-ok! (coq.typecheck R Ty) "R casse",
+  % Name is Prefix ^ "eqb_correct_on_" ^ {coq.gref->id (indc K)},
+  % coq.env.add-const Name R Ty @opaque! P,
+  % coq.say {gettimeofday} ".",
+].
+
+% forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..
+% T : Type |- T -> list T -> list T ---> 
+pred do-params-correct i:int, i:term, i:term, i:term, o:term.
+do-params-correct 0 I T K R :- !, 
+  eqb-for I Cmp,
+  reali I {{ @eqb_correct_on lp:I lp:Cmp }} => 
+  eqb-correct-aux-for I {{ fun x H => H }} =>
+  do-args-correct T K R.
+do-params-correct NP I (prod N T F) K {{ fun (a : lp:T) (eqA : a -> a -> bool) => lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  eqb-for a eqA =>
+  eqb-correct-aux-for a {{ fun (x: lp:a) (H : @eqb_correct_on lp:a lp:eqA x) => H }} =>
+  reali a {{ @eqb_correct_on lp:a lp:eqA }} =>
+    do-params-correct NP1 {{ lp:I lp:a }} (F a) {{ lp:K lp:a }} (R a eqA).
+
+pred do-args-correct i:term, i:term, o:term.
+
+do-args-correct (prod N T F) K {{ fun (x : lp:T) (px : lp:EqbOn x) (h : @eqb_correct_on lp:T lp:Cmp x := lp:View x px) => lp:(R x px h) }} :- !, std.spy-do! [
+  reali T EqbOn, 
+  eqb-for T Cmp,
+  eqb-correct-aux-for T View,
+  @pi-decl N T x\
+  @pi-decl `px` {{ lp:EqbOn lp:x }} px\
+  @pi-def `H` {{ @eqb_correct_on lp:T lp:Cmp lp:x }} {{ lp:View lp:x lp:px }} h\
+     do-args-correct (F x) {{ lp:K lp:x }} (R x px h)
+].
+ 
+do-args-correct T K {{ lp:B : eqb_correct_on lp:Cmp lp:K }} :- std.do! [
+  eqb-for T Cmp,
+  coq.safe-dest-app T (global (indt I)) Args,
+  fields-for I _ _ _ ConstructPC,
+  coq.mk-app (global (const ConstructPC)) Args ConstructP,
+  eqb-fields T Fields,
+  B = {{ @eqb_body_correct _ _ _ _ _ lp:ConstructP lp:Fields lp:K (fun f => _) }},
+  coq.typecheck {{ lp:B : eqb_correct_on lp:Cmp lp:K }} _ _,
+  coq.ltac.collect-goals B [G] _,
+  run-solver G "eqb_correct_on__solver",
+].
+
+pred add-indu-correct i:term, i:term, i:term, i:list term, o:term.
+add-indu-correct (prod N T F) Indu IR LS {{ fun (a : lp:T) (eqA : a -> a -> bool) (eqAc : eqb_correct eqA) => lp:(R a eqA eqAc) }} :- !,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  @pi-decl `eqAc` {{ @eqb_correct lp:a lp:eqA }} eqAc\ % super nasty "bug", the _ does not see a, if you write lp:{{ FOO a }} it works. Elaborating the skeleton is also ok, but then param1-inhab-db does not work well :-/
+  param1-inhab-db {{ @eqb_correct_on lp:a lp:eqA }} eqAc =>
+  add-indu-correct (F a) 
+     {{ lp:Indu lp:a (@eqb_correct_on lp:a lp:eqA)}} 
+     {{ lp:IR lp:a (@eqb_correct_on lp:a lp:eqA)}} 
+     {std.map LS (t\coq.mk-app t [a, eqA])} (R a eqA eqAc).
+
+add-indu-correct _T Indu IR LS {{ fun x => lp:(R x) }} :- 
+  std.assert! (param1-inhab-db IR Is_full) "not trivially inhabited",
+  @pi-decl `x` _ x\
+    std.append LS [x, app[Is_full,x]] (Args x),
+    R x = app [Indu, _ | Args x].
+  
+
+pred add-indu-correct-aux i:term, i:term, i:term, i:list term, o:term.
+add-indu-correct-aux (prod N T F) Indu IR LS {{ fun (a : lp:T) (eqA : a -> a -> bool) => lp:(R a eqA) }} :- !,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  add-indu-correct-aux (F a) 
+     {{ lp:Indu lp:a (@eqb_correct_on lp:a lp:eqA)}} 
+     {{ lp:IR lp:a (@eqb_correct_on lp:a lp:eqA)}} 
+     {std.map LS (t\coq.mk-app t [a, eqA])} (R a eqA).
+add-indu-correct-aux _T Indu IR LS R :- 
+    R = app [Indu, _ | LS].
+
+/******************************** Refl **************************************************************/
+pred add-decl-refl i:string, i:int, i:term, i:term, i:constructor, o:term.
+add-decl-refl Prefix N I KT K R /*(global (const P))*/ :- std.do![  
+  do-params-refl N I KT (global (indc K)) R,
+  std.assert-ok! (coq.typecheck R Ty) "R casse",
+  % Name is Prefix ^ "eqb_refl_on_" ^ {coq.gref->id (indc K)},
+  % coq.env.add-const Name R Ty @opaque! P,
+].
+
+% forall T : Type, T -> list T -> list T --->  forall a eqA, ..R..
+% T : Type |- T -> list T -> list T ---> 
+pred do-params-refl i:int, i:term, i:term, i:term, o:term.
+do-params-refl 0 I T K R :- !, 
+  eqb-for I Cmp,
+  reali I {{ @eqb_refl_on lp:I lp:Cmp }} => 
+  do-args-refl T K R.
+do-params-refl NP I (prod N T F) K {{ fun (a : lp:T) (eqA : a -> a -> bool) => lp:(R a eqA) }} :- NP > 0, !, NP1 is NP - 1,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  eqb-for a eqA =>
+  reali a {{ @eqb_refl_on lp:a lp:eqA }} =>
+    do-params-refl NP1 {{ lp:I lp:a }} (F a) {{ lp:K lp:a }} (R a eqA).
+
+pred do-args-refl i:term, i:term, o:term.
+
+do-args-refl (prod N T F) K {{ fun (x : lp:T) (px : lp:EqbOn x) (h : @eqb_refl_on lp:T lp:Cmp x := lp:View x px) => lp:(R x px h) }} :- !,
+  reali T EqbOn, 
+  eqb-for T Cmp,
+  eqb-refl-aux-for T View,
+  @pi-decl N T x\
+  @pi-decl `px` {{ eqb_refl_on lp:Cmp lp:x }} px\
+  @pi-def `H` {{ @eqb_refl_on lp:T lp:Cmp lp:x }} {{ lp:View lp:x lp:px }} h\
+     do-args-refl (F x) {{ lp:K lp:x }} (R x px h).
+
+do-args-refl T K {{ lp:B : eqb_refl_on lp:Cmp lp:K }} :- std.do! [
+  coq.safe-dest-app T (global (indt I)) Args,
+  tag-for I TagC,
+  fields-for I Fields_tC FieldsC _ _,
+  coq.mk-app (global (const TagC)) Args Tag,
+  coq.mk-app (global (const Fields_tC)) Args Fields_t,
+  coq.mk-app (global (const FieldsC)) Args Fields,
+  eqb-for T Cmp,
+  eqb-fields T EqbFields,
+  B = {{ @eqb_body_refl lp:T lp:Tag lp:Fields_t lp:Fields lp:EqbFields lp:K _ }},
+  std.assert-ok! (coq.typecheck {{ lp:B (*: eqb_refl_on lp:Cmp lp:K*) }} _) "illtyped",
+  coq.ltac.collect-goals B [G] _,
+  run-solver G "eqb_refl_on__solver",
+].
+
+pred add-indu-refl i:term, i:term, i:term, i:list term, o:term.
+add-indu-refl (prod N T F) Indu IR LS {{ fun (a : lp:T) (eqA : a -> a -> bool) (eqAc : eqb_reflexive eqA) => lp:(R a eqA eqAc) }} :- !,
+  @pi-decl N T a\
+  @pi-decl `eqA` {{ lp:a -> lp:a -> bool }} eqA\
+  @pi-decl `eqAr` {{ @eqb_reflexive lp:a lp:eqA }} eqAr\ % super nasty "bug", the _ does not see a, if you write lp:{{ FOO a }} it works. Elaborating the skeleton is also ok, but then param1-inhab-db does not work well :-/
+  param1-inhab-db {{ @eqb_refl_on lp:a lp:eqA }} eqAr =>
+  add-indu-refl (F a) 
+     {{ lp:Indu lp:a (@eqb_refl_on lp:a lp:eqA)}} 
+     {{ lp:IR lp:a (@eqb_refl_on lp:a lp:eqA)}} 
+     {std.map LS (t\coq.mk-app t [a, eqA])} (R a eqA eqAr).
+
+add-indu-refl _T Indu IR LS {{ fun x => lp:(R x) }} :- 
+  std.assert! (param1-inhab-db IR Is_full) "not trivially inhabited",
+  @pi-decl `x` _ x\
+    std.append LS [x, app[Is_full,x]] (Args x),
+    R x = app [Indu, _ | Args x].
+ 
+}

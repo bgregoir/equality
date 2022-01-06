@@ -1,0 +1,5 @@
+src/tag.vo : src/tag.elpi
+src/fields.vo : src/fields.elpi
+src/eqb.vo : src/eqb.elpi src/fields.elpi
+src/eqbcorrect.vo : src/eqbcorrect.elpi src/fields.elpi src/eqb.elpi
+src/eqbP.vo : src/eqbP.elpi src/eqbcorrect.elpi src/fields.elpi src/eqb.elpi

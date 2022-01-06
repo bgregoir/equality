@@ -11,7 +11,7 @@ with pkgs;
 
 let inherit (lib) optionals; in
 
-let coqPackages = coqPackages_8_12; in
+let coqPackages = coqPackages_8_14; in
 
 let coqword = callPackage ./coqword.nix { inherit coqPackages; }; in
 
@@ -35,7 +35,7 @@ stdenv.mkDerivation {
   name = "jasmin-0";
   src = null;
   buildInputs = []
-    ++ optionals coqDeps [ coqPackages.coq coqword coqPackages.coq.ocamlPackages.ocaml ]
+    ++ optionals coqDeps [ coqPackages.coq coqPackages.coq-elpi coqword coqPackages.coq.ocamlPackages.ocaml ]
     ++ optionals testDeps ([ ocamlPackages.apron.out ] ++ (with python3Packages; [ python pyyaml ]))
     ++ optionals ocamlDeps ([ mpfr ppl ] ++ (with oP; [
          ocaml findlib ocamlbuild
